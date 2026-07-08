@@ -1,0 +1,15 @@
+```gitignore
+# Environment variables
+.env
+
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Node / React
+node_modules/
+dist/
+
+# OS files
+.DS_Store
