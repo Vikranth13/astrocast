@@ -3,12 +3,19 @@
   background: #070b18;
   color: white;
   font-family: Arial, sans-serif;
-  padding: 64px;
+  padding: 64px 24px;
+}
+
+.page-container {
+  width: 100%;
+  max-width: 1000px;
+  margin: 0 auto;
 }
 
 .hero {
   max-width: 780px;
-  margin-bottom: 40px;
+  margin: 0 auto 40px;
+  text-align: center;
 }
 
 .eyebrow {
@@ -32,8 +39,9 @@ h1 {
 
 .search-panel {
   display: flex;
+  justify-content: center;
   gap: 12px;
-  margin-bottom: 32px;
+  margin: 0 auto 32px;
   max-width: 600px;
 }
 
@@ -55,6 +63,7 @@ button {
   color: white;
   font-size: 16px;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .results-grid {
@@ -68,6 +77,7 @@ button {
   border: 1px solid #293554;
   border-radius: 16px;
   padding: 24px;
+  text-align: center;
 }
 
 .card h2 {
