@@ -1,8 +1,8 @@
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 
-from services.weather_service import get_mock_forecast
-from services.astronomy_service import get_mock_apod
+from services.astronomy_service import get_apod
+from services.weather_service import geocode_city, get_forecast_for_city
 
 
 app = FastAPI(title="AstroCast API")
@@ -30,11 +30,16 @@ def health_check():
     }
 
 
+@app.get("/geocode")
+def geocode(city: str = Query(..., min_length=2)):
+    return geocode_city(city)
+
+
 @app.get("/forecast")
-def get_forecast(city: str = Query(..., min_length=2)):
-    return get_mock_forecast(city)
+def forecast(city: str = Query(..., min_length=2)):
+    return get_forecast_for_city(city)
 
 
 @app.get("/apod")
-def get_apod():
-    return get_mock_apod()
+def apod():
+    return get_apod()
