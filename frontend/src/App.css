@@ -94,3 +94,33 @@ button {
   font-weight: bold;
   color: white;
 }
+
+button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.error-message {
+  max-width: 600px;
+  margin: 0 auto 24px;
+  color: #ffb4b4;
+  text-align: center;
+}
+
+.location-card {
+  margin-top: 24px;
+  background: #11182c;
+  border: 1px solid #293554;
+  border-radius: 16px;
+  padding: 24px;
+  text-align: center;
+}
+
+.location-card h2 {
+  margin-top: 0;
+  color: #dbe7ff;
+}
+
+.location-card p {
+  color: #b8c2da;
+}

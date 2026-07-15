@@ -1,6 +1,6 @@
 import requests
 from fastapi import HTTPException
-
+from services.scoring_service import calculate_stargazing_score
 
 GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search"
 FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
@@ -161,19 +161,23 @@ def get_forecast_for_city(city: str):
 
     visibility_meters = get_value(hourly, "visibility", forecast_index)
 
+    conditions = {
+        "cloud_cover_percent": get_value(hourly, "cloud_cover", forecast_index),
+        "precipitation_probability_percent": get_value(
+            hourly,
+            "precipitation_probability",
+            forecast_index,
+        ),
+        "temperature_f": get_value(hourly, "temperature_2m", forecast_index),
+        "wind_speed_mph": get_value(hourly, "wind_speed_10m", forecast_index),
+        "visibility_miles": meters_to_miles(visibility_meters),
+    }
+
+    stargazing = calculate_stargazing_score(conditions)
+
     return {
         "location": location,
         "forecast_time": get_value(hourly, "time", forecast_index),
-        "conditions": {
-            "cloud_cover_percent": get_value(hourly, "cloud_cover", forecast_index),
-            "precipitation_probability_percent": get_value(
-                hourly,
-                "precipitation_probability",
-                forecast_index,
-            ),
-            "temperature_f": get_value(hourly, "temperature_2m", forecast_index),
-            "wind_speed_mph": get_value(hourly, "wind_speed_10m", forecast_index),
-            "visibility_miles": meters_to_miles(visibility_meters),
-        },
-        "message": "Real Open-Meteo weather data successfully fetched. Stargazing score will be added on Day 6.",
+        "conditions": conditions,
+        "stargazing": stargazing,
     }
