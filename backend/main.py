@@ -1,11 +1,35 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 
+from config import settings
+from database import database_is_available
 from services.astronomy_service import get_apod
 from services.weather_service import geocode_city, get_forecast_for_city
 
 
-app = FastAPI(title="AstroCast API")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Check database connectivity when the application starts.
+
+    The application is still allowed to start when PostgreSQL is unavailable
+    so the existing external-API forecast routes remain usable.
+    """
+
+    if database_is_available():
+        print("Database connection verified.")
+    else:
+        print("Warning: Database connection could not be verified.")
+
+    yield
+
+
+app = FastAPI(
+    title=settings.app_name,
+    lifespan=lifespan,
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -24,14 +48,21 @@ app.add_middleware(
 @app.get("/")
 def home():
     return {
-        "message": "AstroCast backend is running"
+        "message": "AstroCast backend is running",
     }
 
 
 @app.get("/health")
 def health_check():
+    database_status = (
+        "ok"
+        if database_is_available()
+        else "unavailable"
+    )
+
     return {
-        "status": "ok"
+        "status": "ok",
+        "database": database_status,
     }
 
 

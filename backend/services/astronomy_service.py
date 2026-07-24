@@ -1,36 +1,33 @@
-import os
-
 import requests
-from dotenv import load_dotenv
 from fastapi import HTTPException
 
+from config import settings
 
-load_dotenv()
 
 NASA_APOD_URL = "https://api.nasa.gov/planetary/apod"
-NASA_API_KEY = os.getenv("NASA_API_KEY", "DEMO_KEY")
 
 
 def get_apod():
     """
     Fetch NASA Astronomy Picture of the Day.
-
-    This is optional for the MVP, but it makes AstroCast feel more connected
-    to astronomy and space.
     """
 
     params = {
-        "api_key": NASA_API_KEY,
+        "api_key": settings.nasa_api_key,
     }
 
     try:
-        response = requests.get(NASA_APOD_URL, params=params, timeout=30)
+        response = requests.get(
+            NASA_APOD_URL,
+            params=params,
+            timeout=30,
+        )
         response.raise_for_status()
         data = response.json()
     except requests.exceptions.RequestException as error:
         raise HTTPException(
             status_code=502,
-            detail=f"NASA APOD service failed: {str(error)}"
+            detail=f"NASA APOD service failed: {str(error)}",
         )
 
     return {
