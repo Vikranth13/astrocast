@@ -11,8 +11,7 @@ class Settings(BaseSettings):
     """
     Central application configuration.
 
-    Values are loaded from the root .env file. Keeping configuration here
-    prevents individual services from reading environment variables separately.
+    Values are loaded from the project-root .env file.
     """
 
     app_name: str = "AstroCast API"
@@ -24,9 +23,17 @@ class Settings(BaseSettings):
     open_meteo_geocoding_url: str = (
         "https://geocoding-api.open-meteo.com/v1/search"
     )
+
     open_meteo_forecast_url: str = (
         "https://api.open-meteo.com/v1/forecast"
     )
+
+    noaa_planetary_k_index_url: str = (
+        "https://services.swpc.noaa.gov/products/"
+        "noaa-planetary-k-index.json"
+    )
+
+    noaa_request_timeout_seconds: int = 15
 
     model_config = SettingsConfigDict(
         env_file=PROJECT_ROOT / ".env",
@@ -39,7 +46,7 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     """
-    Create the settings object once and reuse it throughout the application.
+    Build the settings object once and reuse it.
     """
 
     return Settings()
