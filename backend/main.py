@@ -7,6 +7,13 @@ from fastapi import (
     Query,
 )
 
+from schemas.space_weather import (
+    CurrentSpaceWeatherResponse,
+)
+from services.space_weather_service import (
+    get_current_space_weather,
+)
+
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
@@ -132,3 +139,18 @@ def run_noaa_ingestion(
             status_code=500,
             detail=str(error),
         ) from error
+
+@app.get(
+    "/api/space-weather/current",
+    response_model=CurrentSpaceWeatherResponse,
+)
+def current_space_weather(
+    db: Session = Depends(get_db),
+):
+    """
+    Return the newest stored NOAA Kp observation.
+    """
+
+    return get_current_space_weather(
+        db
+    )

@@ -124,3 +124,53 @@ button:disabled {
 .location-card p {
   color: #b8c2da;
 }
+
+.space-weather-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.space-weather-card h2,
+.space-weather-card p {
+  margin: 0;
+}
+
+.space-weather-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.space-weather-badge {
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 0.25rem 0.65rem;
+  font-size: 0.8rem;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.space-weather-kp {
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.space-weather-label {
+  font-weight: 600;
+}
+
+.space-weather-details {
+  display: grid;
+  gap: 0.4rem;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-top: 1px solid currentColor;
+  border-bottom: 1px solid currentColor;
+}
+
+.space-weather-note {
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
