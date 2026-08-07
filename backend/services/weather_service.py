@@ -1,10 +1,12 @@
 import requests
 from fastapi import HTTPException
+
+from config import settings
 from services.scoring_service import calculate_stargazing_score
 
-GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search"
-FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 
+GEOCODING_URL = settings.open_meteo_geocoding_url
+FORECAST_URL = settings.open_meteo_forecast_url
 
 def geocode_city(city: str):
     """

@@ -1,11 +1,59 @@
-from fastapi import FastAPI, Query
-from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 
+from fastapi import (
+    Depends,
+    FastAPI,
+    HTTPException,
+    Query,
+)
+
+from schemas.space_weather import (
+    CurrentSpaceWeatherResponse,
+)
+from services.space_weather_service import (
+    get_current_space_weather,
+)
+
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session
+
+from config import settings
+from database import (
+    database_is_available,
+    get_db,
+)
 from services.astronomy_service import get_apod
 from services.weather_service import geocode_city, get_forecast_for_city
 
+from schemas.ingestion import IngestionResult
+from services.noaa_ingestion_service import (
+    NoaaIngestionDatabaseError,
+    NoaaIngestionError,
+    NoaaIngestionExternalError,
+    ingest_noaa_planetary_k_index,
+)
 
-app = FastAPI(title="AstroCast API")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Check database connectivity when the application starts.
+
+    The application is still allowed to start when PostgreSQL is unavailable
+    so the existing external-API forecast routes remain usable.
+    """
+
+    if database_is_available():
+        print("Database connection verified.")
+    else:
+        print("Warning: Database connection could not be verified.")
+
+    yield
+
+
+app = FastAPI(
+    title=settings.app_name,
+    lifespan=lifespan,
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -24,14 +72,21 @@ app.add_middleware(
 @app.get("/")
 def home():
     return {
-        "message": "AstroCast backend is running"
+        "message": "AstroCast backend is running",
     }
 
 
 @app.get("/health")
 def health_check():
+    database_status = (
+        "ok"
+        if database_is_available()
+        else "unavailable"
+    )
+
     return {
-        "status": "ok"
+        "status": "ok",
+        "database": database_status,
     }
 
 
@@ -48,3 +103,54 @@ def forecast(city: str = Query(..., min_length=2)):
 @app.get("/apod")
 def apod():
     return get_apod()
+
+@app.post(
+    "/api/admin/ingestion/noaa",
+    response_model=IngestionResult,
+)
+def run_noaa_ingestion(
+    db: Session = Depends(get_db),
+):
+    """
+    Run NOAA Planetary K-index ingestion manually.
+
+    This is a development-only administration route.
+    """
+
+    try:
+        return ingest_noaa_planetary_k_index(
+            db
+        )
+
+    except NoaaIngestionExternalError as error:
+        raise HTTPException(
+            status_code=502,
+            detail=str(error),
+        ) from error
+
+    except NoaaIngestionDatabaseError as error:
+        raise HTTPException(
+            status_code=500,
+            detail=str(error),
+        ) from error
+
+    except NoaaIngestionError as error:
+        raise HTTPException(
+            status_code=500,
+            detail=str(error),
+        ) from error
+
+@app.get(
+    "/api/space-weather/current",
+    response_model=CurrentSpaceWeatherResponse,
+)
+def current_space_weather(
+    db: Session = Depends(get_db),
+):
+    """
+    Return the newest stored NOAA Kp observation.
+    """
+
+    return get_current_space_weather(
+        db
+    )
