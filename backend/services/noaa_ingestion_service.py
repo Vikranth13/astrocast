@@ -1,9 +1,9 @@
 from datetime import datetime, timezone
 from time import perf_counter
 
-from sqlalchemy.dialects.postgresql import (
-    insert as postgresql_insert,
-)
+# from sqlalchemy.dialects.postgresql import (
+#     insert as postgresql_insert,
+# )
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -12,23 +12,32 @@ from clients.noaa_swpc_client import (
     NoaaSwpcClientError,
 )
 from config import settings
-from models.api_fetch_log import ApiFetchLog
-from models.space_weather_measurement import (
-    SpaceWeatherMeasurement,
-)
+# from models.api_fetch_log import ApiFetchLog
+# from models.space_weather_measurement import (
+#     SpaceWeatherMeasurement,
+# )
 from parsers.noaa_kp_parser import (
     NoaaKpParseError,
     parse_noaa_planetary_k_index,
 )
 from schemas.ingestion import IngestionResult
 
+from repositories.fetch_log_repository import (
+    create_fetch_log,
+    get_fetch_log,
+    mark_fetch_log_failure,
+    mark_fetch_log_success,
+)
+from repositories.space_weather_repository import (
+    insert_measurements_ignore_duplicates,
+)
 
 SOURCE_NAME = "NOAA_SWPC"
 
-MEASUREMENT_UNIQUE_CONSTRAINT = (
-    "uq_space_weather_measurements_"
-    "source_dedup_key"
-)
+# MEASUREMENT_UNIQUE_CONSTRAINT = (
+#     "uq_space_weather_measurements_"
+#     "source_dedup_key"
+# )
 
 ERROR_MESSAGE_LIMIT = 2000
 
@@ -94,43 +103,26 @@ def mark_fetch_log_failed(
     db.rollback()
 
     try:
-        fetch_log = db.get(
-            ApiFetchLog,
+        fetch_log = get_fetch_log(
+            db,
             fetch_log_id,
         )
 
         if fetch_log is None:
             return
 
-        fetch_log.status = "failed"
-
-        fetch_log.completed_at = utc_now()
-
-        fetch_log.duration_ms = (
-            elapsed_milliseconds(
+        mark_fetch_log_failure(
+            fetch_log=fetch_log,
+            completed_at=utc_now(),
+            duration_ms=elapsed_milliseconds(
                 timer_started_at
-            )
+            ),
+            http_status_code=http_status_code,
+            fetched_count=fetched_count,
+            error_message=str(error)[
+                :ERROR_MESSAGE_LIMIT
+            ],
         )
-
-        fetch_log.http_status_code = (
-            http_status_code
-        )
-
-        fetch_log.fetched_count = (
-            fetched_count
-        )
-
-        fetch_log.inserted_count = 0
-
-        fetch_log.skipped_count = 0
-
-        fetch_log.failed_count = (
-            fetched_count
-        )
-
-        fetch_log.error_message = str(
-            error
-        )[:ERROR_MESSAGE_LIMIT]
 
         db.commit()
 
@@ -149,17 +141,16 @@ def ingest_noaa_planetary_k_index(
 
     timer_started_at = perf_counter()
 
-    fetch_log = ApiFetchLog(
+    fetch_log = create_fetch_log(
+        db=db,
         source=SOURCE_NAME,
         endpoint=(
             settings.noaa_planetary_k_index_url
         ),
-        status="started",
         started_at=utc_now(),
     )
 
     try:
-        db.add(fetch_log)
         db.commit()
         db.refresh(fetch_log)
 
@@ -230,70 +221,29 @@ def ingest_noaa_planetary_k_index(
             for record in normalized_records
         ]
 
-        inserted_count = 0
-
-        if values_to_insert:
-            insert_statement = (
-                postgresql_insert(
-                    SpaceWeatherMeasurement
-                )
-                .values(values_to_insert)
-                .on_conflict_do_nothing(
-                    constraint=(
-                        MEASUREMENT_UNIQUE_CONSTRAINT
-                    )
-                )
-                .returning(
-                    SpaceWeatherMeasurement.id
-                )
+        inserted_count = (
+            insert_measurements_ignore_duplicates(
+                db=db,
+                values=values_to_insert,
             )
-
-            inserted_ids = (
-                db.execute(
-                    insert_statement
-                )
-                .scalars()
-                .all()
-            )
-
-            inserted_count = len(
-                inserted_ids
-            )
+        )
 
         skipped_count = (
             len(normalized_records)
             - inserted_count
         )
 
-        fetch_log.status = "success"
-
-        fetch_log.completed_at = utc_now()
-
-        fetch_log.duration_ms = (
-            elapsed_milliseconds(
+        mark_fetch_log_success(
+            fetch_log=fetch_log,
+            completed_at=utc_now(),
+            duration_ms=elapsed_milliseconds(
                 timer_started_at
-            )
+            ),
+            http_status_code=http_status_code,
+            fetched_count=fetched_count,
+            inserted_count=inserted_count,
+            skipped_count=skipped_count,
         )
-
-        fetch_log.http_status_code = (
-            http_status_code
-        )
-
-        fetch_log.fetched_count = (
-            fetched_count
-        )
-
-        fetch_log.inserted_count = (
-            inserted_count
-        )
-
-        fetch_log.skipped_count = (
-            skipped_count
-        )
-
-        fetch_log.failed_count = 0
-
-        fetch_log.error_message = None
 
         db.commit()
 

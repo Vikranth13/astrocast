@@ -1,3 +1,9 @@
+from api.routes import (
+    admin_ingestion,
+    space_weather,
+    system,
+)
+
 from datetime import (
     datetime,
     timezone,
@@ -51,7 +57,7 @@ def test_health_route(
     monkeypatch,
 ) -> None:
     monkeypatch.setattr(
-        main,
+        system,
         "database_is_available",
         lambda: True,
     )
@@ -120,7 +126,7 @@ def test_current_space_weather_route(
     )
 
     monkeypatch.setattr(
-        main,
+        space_weather,
         "get_current_space_weather",
         lambda db: expected_response,
     )
@@ -167,7 +173,7 @@ def test_ingestion_route_returns_summary(
     )
 
     monkeypatch.setattr(
-        main,
+        admin_ingestion,
         "ingest_noaa_planetary_k_index",
         lambda db: expected_result,
     )
@@ -200,7 +206,7 @@ def test_ingestion_route_maps_external_error_to_502(
         )
 
     monkeypatch.setattr(
-        main,
+        admin_ingestion,
         "ingest_noaa_planetary_k_index",
         raise_external_error,
     )

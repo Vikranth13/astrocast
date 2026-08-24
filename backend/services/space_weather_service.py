@@ -2,12 +2,17 @@ from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import HTTPException
-from sqlalchemy import select
+# from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from models.space_weather_measurement import (
-    SpaceWeatherMeasurement,
+# from models.space_weather_measurement import (
+#     SpaceWeatherMeasurement,
+# )
+
+from repositories.space_weather_repository import (
+    get_latest_measurement,
 )
+
 from schemas.space_weather import (
     CurrentSpaceWeatherResponse,
     PlanetaryKpFacts,
@@ -135,27 +140,10 @@ def get_current_space_weather(
     K-index measurement.
     """
 
-    statement = (
-        select(
-            SpaceWeatherMeasurement
-        )
-        .where(
-            SpaceWeatherMeasurement.source
-            == SOURCE_NAME,
-            SpaceWeatherMeasurement.metric_name
-            == METRIC_NAME,
-        )
-        .order_by(
-            SpaceWeatherMeasurement
-            .observed_at
-            .desc()
-        )
-        .limit(1)
-    )
-
-    measurement = (
-        db.scalars(statement)
-        .first()
+    measurement = get_latest_measurement(
+    db=db,
+    source=SOURCE_NAME,
+    metric_name=METRIC_NAME,
     )
 
     if measurement is None:
