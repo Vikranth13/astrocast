@@ -9,10 +9,14 @@ from types import SimpleNamespace
 import pytest
 from fastapi import HTTPException
 
+
 from services.space_weather_service import (
+    calculate_alert_status,
     calculate_freshness,
     format_age,
     get_current_space_weather,
+    get_space_weather_alert,
+    get_space_weather_alerts,
     optional_integer,
 )
 
@@ -220,4 +224,130 @@ def test_returns_404_when_no_measurement_exists(
     assert (
         "Run NOAA ingestion first"
         in captured_error.value.detail
+    )
+
+def test_alert_without_expiration_has_unknown_status() -> None:
+    assert (
+        calculate_alert_status(None)
+        == "unknown"
+    )
+
+def test_future_alert_is_active() -> None:
+    now = datetime(
+        2026,
+        8,
+        24,
+        12,
+        0,
+        tzinfo=timezone.utc,
+    )
+
+    expires_at = datetime(
+        2026,
+        8,
+        24,
+        18,
+        0,
+        tzinfo=timezone.utc,
+    )
+
+    assert (
+        calculate_alert_status(
+            expires_at,
+            now=now,
+        )
+        == "active"
+    )
+
+def test_past_alert_is_expired() -> None:
+    now = datetime(
+        2026,
+        8,
+        24,
+        12,
+        0,
+        tzinfo=timezone.utc,
+    )
+
+    expires_at = datetime(
+        2026,
+        8,
+        24,
+        6,
+        0,
+        tzinfo=timezone.utc,
+    )
+
+    assert (
+        calculate_alert_status(
+            expires_at,
+            now=now,
+        )
+        == "expired"
+    )
+
+def test_alert_list_rejects_reversed_date_range() -> None:
+    issued_start = datetime(
+        2026,
+        8,
+        24,
+        tzinfo=timezone.utc,
+    )
+
+    issued_end = datetime(
+        2026,
+        8,
+        20,
+        tzinfo=timezone.utc,
+    )
+
+    with pytest.raises(
+        HTTPException
+    ) as captured_error:
+        get_space_weather_alerts(
+            db=object(),
+            issued_start=issued_start,
+            issued_end=issued_end,
+        )
+
+    assert (
+        captured_error.value.status_code
+        == 400
+    )
+
+    assert (
+        captured_error.value.detail
+        == (
+            "issued_start must be earlier "
+            "than or equal to issued_end."
+        )
+    )
+
+def test_returns_404_when_alert_does_not_exist(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        "services.space_weather_service.get_alert_by_id",
+        lambda db, alert_id: None,
+    )
+
+    with pytest.raises(
+        HTTPException
+    ) as captured_error:
+        get_space_weather_alert(
+            db=object(),
+            alert_id=999999,
+        )
+
+    assert (
+        captured_error.value.status_code
+        == 404
+    )
+
+    assert (
+        captured_error.value.detail
+        == (
+            "Space-weather alert was "
+            "not found."
+        )
     )

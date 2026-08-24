@@ -32,6 +32,14 @@ from repositories.space_weather_repository import (
     insert_measurements_ignore_duplicates,
 )
 
+from parsers.noaa_alert_parser import (
+    NoaaAlertParseError,
+    parse_noaa_alerts,
+)
+from repositories.space_weather_alert_repository import (
+    insert_alerts_ignore_duplicates,
+)
+
 SOURCE_NAME = "NOAA_SWPC"
 
 # MEASUREMENT_UNIQUE_CONSTRAINT = (
@@ -322,5 +330,205 @@ def ingest_noaa_planetary_k_index(
             (
                 "NOAA ingestion encountered "
                 f"an unexpected error: {error}"
+            )
+        ) from error
+
+def ingest_noaa_alerts(
+    db: Session,
+    client: NoaaSwpcClient | None = None,
+) -> IngestionResult:
+    """
+    Fetch, validate, normalize, deduplicate,
+    and store NOAA SWPC alerts.
+    """
+
+    timer_started_at = perf_counter()
+
+    fetch_log = create_fetch_log(
+        db=db,
+        source=SOURCE_NAME,
+        endpoint=settings.noaa_alerts_url,
+        started_at=utc_now(),
+    )
+
+    try:
+        db.commit()
+        db.refresh(fetch_log)
+
+    except SQLAlchemyError as error:
+        db.rollback()
+
+        raise NoaaIngestionDatabaseError(
+            (
+                "NOAA alert ingestion could not "
+                "create the initial fetch log: "
+                f"{error}"
+            )
+        ) from error
+
+    fetch_log_id = fetch_log.id
+
+    fetched_count = 0
+    http_status_code: int | None = None
+
+    try:
+        active_client = (
+            client or NoaaSwpcClient()
+        )
+
+        fetch_result = (
+            active_client.fetch_alerts()
+        )
+
+        http_status_code = (
+            fetch_result.http_status_code
+        )
+
+        fetched_count = len(
+            fetch_result.records
+        )
+
+        normalized_records = (
+            parse_noaa_alerts(
+                fetch_result.records
+            )
+        )
+
+        values_to_insert = [
+            {
+                "source": record.source,
+                "external_id": (
+                    record.external_id
+                ),
+                "deduplication_key": (
+                    record.deduplication_key
+                ),
+                "alert_type": (
+                    record.alert_type
+                ),
+                "severity": (
+                    record.severity
+                ),
+                "issued_at": (
+                    record.issued_at
+                ),
+                "expires_at": (
+                    record.expires_at
+                ),
+                "summary": (
+                    record.summary
+                ),
+                "raw_payload": (
+                    record.raw_payload
+                ),
+            }
+            for record in normalized_records
+        ]
+
+        inserted_count = (
+            insert_alerts_ignore_duplicates(
+                db=db,
+                values=values_to_insert,
+            )
+        )
+
+        skipped_count = (
+            fetched_count
+            - inserted_count
+        )
+
+        mark_fetch_log_success(
+            fetch_log=fetch_log,
+            completed_at=utc_now(),
+            duration_ms=elapsed_milliseconds(
+                timer_started_at
+            ),
+            http_status_code=http_status_code,
+            fetched_count=fetched_count,
+            inserted_count=inserted_count,
+            skipped_count=skipped_count,
+        )
+
+        db.commit()
+
+        return IngestionResult(
+            source=SOURCE_NAME,
+            status="success",
+            fetch_log_id=fetch_log_id,
+            fetched=fetched_count,
+            inserted=inserted_count,
+            skipped=skipped_count,
+            failed=0,
+        )
+
+    except (
+        NoaaSwpcClientError,
+        NoaaAlertParseError,
+    ) as error:
+        mark_fetch_log_failed(
+            db=db,
+            fetch_log_id=fetch_log_id,
+            timer_started_at=(
+                timer_started_at
+            ),
+            error=error,
+            fetched_count=fetched_count,
+            http_status_code=(
+                http_status_code
+                or getattr(
+                    error,
+                    "http_status_code",
+                    None,
+                )
+            ),
+        )
+
+        raise NoaaIngestionExternalError(
+            (
+                "NOAA alert ingestion failed: "
+                f"{error}"
+            )
+        ) from error
+
+    except SQLAlchemyError as error:
+        mark_fetch_log_failed(
+            db=db,
+            fetch_log_id=fetch_log_id,
+            timer_started_at=(
+                timer_started_at
+            ),
+            error=error,
+            fetched_count=fetched_count,
+            http_status_code=(
+                http_status_code
+            ),
+        )
+
+        raise NoaaIngestionDatabaseError(
+            (
+                "NOAA alert ingestion database "
+                f"operation failed: {error}"
+            )
+        ) from error
+
+    except Exception as error:
+        mark_fetch_log_failed(
+            db=db,
+            fetch_log_id=fetch_log_id,
+            timer_started_at=(
+                timer_started_at
+            ),
+            error=error,
+            fetched_count=fetched_count,
+            http_status_code=(
+                http_status_code
+            ),
+        )
+
+        raise NoaaIngestionError(
+            (
+                "NOAA alert ingestion "
+                "encountered an unexpected "
+                f"error: {error}"
             )
         ) from error

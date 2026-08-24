@@ -27,6 +27,39 @@ NoaaGeomagneticScale = Literal[
     "G5",
 ]
 
+AlertType = Literal[
+    "alert",
+    "warning",
+    "watch",
+    "summary",
+    "cancellation",
+    "other",
+]
+
+AlertStatus = Literal[
+    "active",
+    "expired",
+    "unknown",
+]
+
+AlertSeverity = Literal[
+    "G1",
+    "G2",
+    "G3",
+    "G4",
+    "G5",
+    "R1",
+    "R2",
+    "R3",
+    "R4",
+    "R5",
+    "S1",
+    "S2",
+    "S3",
+    "S4",
+    "S5",
+]
+
 
 class SpaceWeatherFreshness(BaseModel):
     """
@@ -98,3 +131,44 @@ class CurrentSpaceWeatherResponse(BaseModel):
     facts: PlanetaryKpFacts
 
     explanation: str
+
+class SpaceWeatherAlertResponse(BaseModel):
+    """
+    Public representation of one persisted
+    space-weather notification.
+    """
+
+    id: int
+
+    source: str
+
+    external_id: str | None
+
+    alert_type: AlertType
+
+    severity: AlertSeverity | None
+
+    issued_at: datetime
+
+    expires_at: datetime | None
+
+    status: AlertStatus
+
+    summary: str
+
+    ingested_at: datetime
+
+
+class SpaceWeatherAlertListResponse(BaseModel):
+    """
+    Filtered collection of persisted
+    space-weather alerts.
+    """
+
+    count: int = Field(
+        ge=0,
+    )
+
+    alerts: list[
+        SpaceWeatherAlertResponse
+    ]

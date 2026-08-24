@@ -33,6 +33,10 @@ class Settings(BaseSettings):
         "noaa-planetary-k-index.json"
     )
 
+    noaa_alerts_url: str = (
+        "https://services.swpc.noaa.gov/products/alerts.json"
+    )
+
     noaa_request_timeout_seconds: int = 15
 
     model_config = SettingsConfigDict(

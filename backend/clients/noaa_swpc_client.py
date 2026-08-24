@@ -43,10 +43,16 @@ class NoaaSwpcClient:
         planetary_k_index_url: str | None = None,
         timeout_seconds: int | None = None,
         session: requests.Session | None = None,
+        alerts_url: str | None = None,
     ):
         self.planetary_k_index_url = (
             planetary_k_index_url
             or settings.noaa_planetary_k_index_url
+        )
+
+        self.alerts_url = (
+            alerts_url
+            or settings.noaa_alerts_url
         )
 
         self.timeout_seconds = (
@@ -56,16 +62,14 @@ class NoaaSwpcClient:
 
         self.session = session or requests.Session()
 
-    def fetch_planetary_k_index(
+    def _fetch_json_array(
         self,
+        url: str,
+        product_name: str,
     ) -> NoaaFetchResult:
-        """
-        Fetch observed NOAA planetary K-index data.
-        """
-
         try:
             response = self.session.get(
-                self.planetary_k_index_url,
+                url,
                 timeout=self.timeout_seconds,
             )
 
@@ -81,7 +85,7 @@ class NoaaSwpcClient:
 
             raise NoaaSwpcClientError(
                 message=(
-                    "NOAA planetary K-index request "
+                    f"NOAA {product_name} request "
                     f"failed: {error}"
                 ),
                 http_status_code=status_code,
@@ -93,7 +97,7 @@ class NoaaSwpcClient:
         except ValueError as error:
             raise NoaaSwpcClientError(
                 message=(
-                    "NOAA planetary K-index response "
+                    f"NOAA {product_name} response "
                     "was not valid JSON."
                 ),
                 http_status_code=response.status_code,
@@ -102,7 +106,7 @@ class NoaaSwpcClient:
         if not isinstance(payload, list):
             raise NoaaSwpcClientError(
                 message=(
-                    "NOAA planetary K-index response "
+                    f"NOAA {product_name} response "
                     "must be a JSON array."
                 ),
                 http_status_code=response.status_code,
@@ -114,7 +118,7 @@ class NoaaSwpcClient:
             if not isinstance(item, dict):
                 raise NoaaSwpcClientError(
                     message=(
-                        "NOAA planetary K-index "
+                        f"NOAA {product_name} "
                         f"record {index} was not "
                         "a JSON object."
                     ),
@@ -128,4 +132,28 @@ class NoaaSwpcClient:
         return NoaaFetchResult(
             records=records,
             http_status_code=response.status_code,
+        )
+
+    def fetch_planetary_k_index(
+        self,
+    ) -> NoaaFetchResult:
+        """
+        Fetch observed NOAA planetary K-index data.
+        """
+
+        return self._fetch_json_array(
+            url=self.planetary_k_index_url,
+            product_name="planetary K-index",
+        )
+
+    def fetch_alerts(
+        self,
+    ) -> NoaaFetchResult:
+        """
+        Fetch NOAA SWPC alert notifications.
+        """
+
+        return self._fetch_json_array(
+            url=self.alerts_url,
+            product_name="alerts",
         )
