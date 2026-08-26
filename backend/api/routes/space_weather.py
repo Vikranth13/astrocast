@@ -12,11 +12,15 @@ from schemas.space_weather import (
     CurrentSpaceWeatherResponse,
     SpaceWeatherAlertListResponse,
     SpaceWeatherAlertResponse,
+    SpaceWeatherTrendResponse,
+    SolarWindTrendResponse,
 )
 from services.space_weather_service import (
     get_current_space_weather,
     get_space_weather_alerts,
     get_space_weather_alert,
+    get_kp_trend,
+    get_solar_wind_trend,
 )
 
 
@@ -91,4 +95,52 @@ def space_weather_alert_detail(
     return get_space_weather_alert(
         db=db,
         alert_id=alert_id,
+    )
+
+@router.get(
+    "/trends/kp",
+    response_model=(
+        SpaceWeatherTrendResponse
+    ),
+    summary="Get historical Kp trend",
+)
+def kp_trend(
+    start: datetime | None = None,
+    end: datetime | None = None,
+    limit: int = Query(
+        default=500,
+        ge=1,
+        le=2000,
+    ),
+    db: Session = Depends(get_db),
+):
+    return get_kp_trend(
+        db=db,
+        start=start,
+        end=end,
+        limit=limit,
+    )
+
+@router.get(
+    "/trends/solar-wind",
+    response_model=(
+        SolarWindTrendResponse
+    ),
+    summary="Get solar-wind trend",
+)
+def solar_wind_trend(
+    start: datetime | None = None,
+    end: datetime | None = None,
+    limit: int = Query(
+        default=500,
+        ge=1,
+        le=2000,
+    ),
+    db: Session = Depends(get_db),
+):
+    return get_solar_wind_trend(
+        db=db,
+        start=start,
+        end=end,
+        limit=limit,
     )

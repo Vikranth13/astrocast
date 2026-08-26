@@ -24,6 +24,10 @@ from schemas.space_weather import (
     SpaceWeatherAlertListResponse,
     SpaceWeatherAlertResponse,
     SpaceWeatherFreshness,
+    SpaceWeatherTrendPoint,
+    SpaceWeatherTrendResponse,
+    SolarWindTrendPoint,
+    SolarWindTrendResponse,
 )
 from services.noaa_ingestion_service import (
     NoaaIngestionExternalError,
@@ -450,5 +454,211 @@ def test_alert_ingestion_route_returns_summary(
         "fetched": 77,
         "inserted": 0,
         "skipped": 77,
+        "failed": 0,
+    }
+
+def test_kp_trend_route(
+    monkeypatch,
+) -> None:
+    expected_response = (
+        SpaceWeatherTrendResponse(
+            source="NOAA_SWPC",
+            metric_name=(
+                "planetary_k_index"
+            ),
+            unit=None,
+            count=1,
+            points=[
+                SpaceWeatherTrendPoint(
+                    observed_at=datetime(
+                        2026,
+                        8,
+                        20,
+                        tzinfo=timezone.utc,
+                    ),
+                    value=2.33,
+                )
+            ],
+        )
+    )
+
+    captured = {}
+
+    def fake_get_kp_trend(
+        db,
+        start=None,
+        end=None,
+        limit=500,
+    ):
+        captured["start"] = start
+        captured["end"] = end
+        captured["limit"] = limit
+
+        return expected_response
+
+    monkeypatch.setattr(
+        space_weather,
+        "get_kp_trend",
+        fake_get_kp_trend,
+    )
+
+    response = client.get(
+        (
+            "/api/space-weather/trends/kp"
+            "?limit=25"
+        )
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["count"] == 1
+
+    assert (
+        body["points"][0]["value"]
+        == 2.33
+    )
+
+    assert captured["limit"] == 25
+
+@pytest.mark.parametrize(
+    "limit",
+    [
+        0,
+        2001,
+    ],
+)
+def test_kp_trend_rejects_invalid_limit(
+    limit,
+) -> None:
+    response = client.get(
+        (
+            "/api/space-weather/trends/kp"
+            f"?limit={limit}"
+        )
+    )
+
+    assert response.status_code == 422
+
+def test_solar_wind_trend_route(
+    monkeypatch,
+) -> None:
+    expected_response = (
+        SolarWindTrendResponse(
+            source="NOAA_SWPC",
+            count=1,
+            points=[
+                SolarWindTrendPoint(
+                    observed_at=datetime(
+                        2026,
+                        8,
+                        26,
+                        tzinfo=timezone.utc,
+                    ),
+                    station="SOLAR1",
+                    speed_km_s=350.0,
+                    density_per_cm3=4.2,
+                    temperature_k=40000,
+                )
+            ],
+        )
+    )
+
+    captured = {}
+
+    def fake_get_solar_wind_trend(
+        db,
+        start=None,
+        end=None,
+        limit=500,
+    ):
+        captured["start"] = start
+        captured["end"] = end
+        captured["limit"] = limit
+
+        return expected_response
+
+    monkeypatch.setattr(
+        space_weather,
+        "get_solar_wind_trend",
+        fake_get_solar_wind_trend,
+    )
+
+    response = client.get(
+        (
+            "/api/space-weather/"
+            "trends/solar-wind"
+            "?limit=25"
+        )
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["count"] == 1
+
+    assert (
+        body["points"][0][
+            "speed_km_s"
+        ]
+        == 350.0
+    )
+
+    assert captured["limit"] == 25
+
+@pytest.mark.parametrize(
+    "limit",
+    [
+        0,
+        2001,
+    ],
+)
+def test_solar_wind_trend_rejects_invalid_limit(
+    limit,
+) -> None:
+    response = client.get(
+        (
+            "/api/space-weather/"
+            "trends/solar-wind"
+            f"?limit={limit}"
+        )
+    )
+
+    assert response.status_code == 422
+
+def test_solar_wind_ingestion_route_returns_summary(
+    monkeypatch,
+) -> None:
+    expected_result = IngestionResult(
+        source="NOAA_SWPC",
+        status="success",
+        fetch_log_id=16,
+        fetched=3408,
+        inserted=0,
+        skipped=4101,
+        failed=0,
+    )
+
+    monkeypatch.setattr(
+        admin_ingestion,
+        "ingest_noaa_solar_wind",
+        lambda db: expected_result,
+    )
+
+    response = client.post(
+        "/api/admin/ingestion/noaa/solar-wind"
+    )
+
+    assert response.status_code == 200
+
+    assert response.json() == {
+        "source": "NOAA_SWPC",
+        "status": "success",
+        "fetch_log_id": 16,
+        "fetched": 3408,
+        "inserted": 0,
+        "skipped": 4101,
         "failed": 0,
     }

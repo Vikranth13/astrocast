@@ -40,6 +40,11 @@ from repositories.space_weather_alert_repository import (
     insert_alerts_ignore_duplicates,
 )
 
+from parsers.noaa_solar_wind_parser import (
+    NoaaSolarWindParseError,
+    parse_noaa_solar_wind,
+)
+
 SOURCE_NAME = "NOAA_SWPC"
 
 # MEASUREMENT_UNIQUE_CONSTRAINT = (
@@ -528,6 +533,201 @@ def ingest_noaa_alerts(
         raise NoaaIngestionError(
             (
                 "NOAA alert ingestion "
+                "encountered an unexpected "
+                f"error: {error}"
+            )
+        ) from error
+
+def ingest_noaa_solar_wind(
+    db: Session,
+    client: NoaaSwpcClient | None = None,
+) -> IngestionResult:
+    """
+    Fetch, normalize, deduplicate, and persist
+    active NOAA real-time solar-wind data.
+    """
+
+    timer_started_at = perf_counter()
+
+    fetch_log = create_fetch_log(
+        db=db,
+        source=SOURCE_NAME,
+        endpoint=settings.noaa_solar_wind_url,
+        started_at=utc_now(),
+    )
+
+    try:
+        db.commit()
+        db.refresh(fetch_log)
+
+    except SQLAlchemyError as error:
+        db.rollback()
+
+        raise NoaaIngestionDatabaseError(
+            (
+                "NOAA solar-wind ingestion "
+                "could not create the initial "
+                f"fetch log: {error}"
+            )
+        ) from error
+
+    fetch_log_id = fetch_log.id
+    fetched_count = 0
+    http_status_code: int | None = None
+
+    try:
+        active_client = (
+            client or NoaaSwpcClient()
+        )
+
+        fetch_result = (
+            active_client.fetch_solar_wind()
+        )
+
+        http_status_code = (
+            fetch_result.http_status_code
+        )
+
+        fetched_count = len(
+            fetch_result.records
+        )
+
+        normalized_records = (
+            parse_noaa_solar_wind(
+                fetch_result.records
+            )
+        )
+
+        values_to_insert = [
+            {
+                "source": record.source,
+                "deduplication_key": (
+                    record.deduplication_key
+                ),
+                "metric_name": (
+                    record.metric_name
+                ),
+                "observed_at": (
+                    record.observed_at
+                ),
+                "numeric_value": (
+                    record.numeric_value
+                ),
+                "text_value": (
+                    record.text_value
+                ),
+                "unit": record.unit,
+                "station": record.station,
+                "raw_payload": (
+                    record.raw_payload
+                ),
+            }
+            for record in normalized_records
+        ]
+
+        inserted_count = (
+            insert_measurements_ignore_duplicates(
+                db=db,
+                values=values_to_insert,
+            )
+        )
+
+        skipped_count = (
+            len(normalized_records)
+            - inserted_count
+        )
+
+        mark_fetch_log_success(
+            fetch_log=fetch_log,
+            completed_at=utc_now(),
+            duration_ms=elapsed_milliseconds(
+                timer_started_at
+            ),
+            http_status_code=http_status_code,
+            fetched_count=fetched_count,
+            inserted_count=inserted_count,
+            skipped_count=skipped_count,
+        )
+
+        db.commit()
+
+        return IngestionResult(
+            source=SOURCE_NAME,
+            status="success",
+            fetch_log_id=fetch_log_id,
+            fetched=fetched_count,
+            inserted=inserted_count,
+            skipped=skipped_count,
+            failed=0,
+        )
+
+    except (
+        NoaaSwpcClientError,
+        NoaaSolarWindParseError,
+    ) as error:
+        mark_fetch_log_failed(
+            db=db,
+            fetch_log_id=fetch_log_id,
+            timer_started_at=(
+                timer_started_at
+            ),
+            error=error,
+            fetched_count=fetched_count,
+            http_status_code=(
+                http_status_code
+                or getattr(
+                    error,
+                    "http_status_code",
+                    None,
+                )
+            ),
+        )
+
+        raise NoaaIngestionExternalError(
+            (
+                "NOAA solar-wind ingestion "
+                f"failed: {error}"
+            )
+        ) from error
+
+    except SQLAlchemyError as error:
+        mark_fetch_log_failed(
+            db=db,
+            fetch_log_id=fetch_log_id,
+            timer_started_at=(
+                timer_started_at
+            ),
+            error=error,
+            fetched_count=fetched_count,
+            http_status_code=(
+                http_status_code
+            ),
+        )
+
+        raise NoaaIngestionDatabaseError(
+            (
+                "NOAA solar-wind database "
+                f"operation failed: {error}"
+            )
+        ) from error
+
+    except Exception as error:
+        mark_fetch_log_failed(
+            db=db,
+            fetch_log_id=fetch_log_id,
+            timer_started_at=(
+                timer_started_at
+            ),
+            error=error,
+            fetched_count=fetched_count,
+            http_status_code=(
+                http_status_code
+            ),
+        )
+
+        raise NoaaIngestionError(
+            (
+                "NOAA solar-wind ingestion "
                 "encountered an unexpected "
                 f"error: {error}"
             )

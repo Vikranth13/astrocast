@@ -82,14 +82,18 @@ def list_measurements(
         .order_by(
             SpaceWeatherMeasurement
             .observed_at
-            .asc()
+            .desc()
         )
         .limit(limit)
     )
 
-    return list(
+    measurements = list(
         db.scalars(statement).all()
     )
+
+    measurements.reverse()
+
+    return measurements
 
 
 def insert_measurements_ignore_duplicates(

@@ -172,3 +172,46 @@ class SpaceWeatherAlertListResponse(BaseModel):
     alerts: list[
         SpaceWeatherAlertResponse
     ]
+
+class SpaceWeatherTrendPoint(BaseModel):
+    observed_at: datetime
+    value: float
+
+
+class SpaceWeatherTrendResponse(BaseModel):
+    source: str
+
+    metric_name: str
+
+    unit: str | None
+
+    count: int = Field(
+        ge=0,
+    )
+
+    points: list[
+        SpaceWeatherTrendPoint
+    ]
+
+class SolarWindTrendPoint(BaseModel):
+    observed_at: datetime
+
+    station: str | None
+
+    speed_km_s: float | None = None
+
+    density_per_cm3: float | None = None
+
+    temperature_k: float | None = None
+
+
+class SolarWindTrendResponse(BaseModel):
+    source: str
+
+    count: int = Field(
+        ge=0,
+    )
+
+    points: list[
+        SolarWindTrendPoint
+    ]

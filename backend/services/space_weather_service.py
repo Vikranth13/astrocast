@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from repositories.space_weather_repository import (
     get_latest_measurement,
+    list_measurements,
 )
 
 from schemas.space_weather import (
@@ -19,6 +20,10 @@ from schemas.space_weather import (
     SpaceWeatherFreshness,
     SpaceWeatherAlertListResponse,
     SpaceWeatherAlertResponse,
+    SpaceWeatherTrendPoint,
+    SpaceWeatherTrendResponse,
+    SolarWindTrendPoint,
+    SolarWindTrendResponse,
 )
 from services.space_weather_risk_service import (
     classify_planetary_k_index,
@@ -35,6 +40,18 @@ METRIC_NAME = "planetary_k_index"
 
 CURRENT_MAX_AGE_MINUTES = 240
 DELAYED_MAX_AGE_MINUTES = 720
+
+SOLAR_WIND_SPEED_METRIC = (
+    "solar_wind_speed"
+)
+
+SOLAR_WIND_DENSITY_METRIC = (
+    "solar_wind_density"
+)
+
+SOLAR_WIND_TEMPERATURE_METRIC = (
+    "solar_wind_temperature"
+)
 
 
 def ensure_utc(
@@ -370,4 +387,207 @@ def get_space_weather_alert(
 
     return build_alert_response(
         alert
+    )
+
+def get_kp_trend(
+    db: Session,
+    start: datetime | None = None,
+    end: datetime | None = None,
+    limit: int = 500,
+) -> SpaceWeatherTrendResponse:
+    if (
+        start is not None
+        and end is not None
+        and start > end
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "start must be earlier than "
+                "or equal to end."
+            ),
+        )
+
+    measurements = list_measurements(
+        db=db,
+        source=SOURCE_NAME,
+        metric_name=METRIC_NAME,
+        start=start,
+        end=end,
+        limit=limit,
+    )
+
+    points = []
+
+    for measurement in measurements:
+        if measurement.numeric_value is None:
+            continue
+
+        points.append(
+            SpaceWeatherTrendPoint(
+                observed_at=ensure_utc(
+                    measurement.observed_at
+                ),
+                value=float(
+                    measurement.numeric_value
+                ),
+            )
+        )
+
+    unit = None
+
+    if measurements:
+        unit = measurements[0].unit
+
+    return SpaceWeatherTrendResponse(
+        source=SOURCE_NAME,
+        metric_name=METRIC_NAME,
+        unit=unit,
+        count=len(points),
+        points=points,
+    )
+
+def get_solar_wind_trend(
+    db: Session,
+    start: datetime | None = None,
+    end: datetime | None = None,
+    limit: int = 500,
+) -> SolarWindTrendResponse:
+    if (
+        start is not None
+        and end is not None
+        and start > end
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "start must be earlier than "
+                "or equal to end."
+            ),
+        )
+
+    speed_measurements = list_measurements(
+        db=db,
+        source=SOURCE_NAME,
+        metric_name=(
+            SOLAR_WIND_SPEED_METRIC
+        ),
+        start=start,
+        end=end,
+        limit=limit,
+    )
+
+    density_measurements = list_measurements(
+        db=db,
+        source=SOURCE_NAME,
+        metric_name=(
+            SOLAR_WIND_DENSITY_METRIC
+        ),
+        start=start,
+        end=end,
+        limit=limit,
+    )
+
+    temperature_measurements = (
+        list_measurements(
+            db=db,
+            source=SOURCE_NAME,
+            metric_name=(
+                SOLAR_WIND_TEMPERATURE_METRIC
+            ),
+            start=start,
+            end=end,
+            limit=limit,
+        )
+    )
+
+    grouped: dict[
+        tuple[datetime, str | None],
+        dict,
+    ] = {}
+
+    def get_group(
+        measurement,
+    ) -> dict:
+        observed_at = ensure_utc(
+            measurement.observed_at
+        )
+
+        key = (
+            observed_at,
+            measurement.station,
+        )
+
+        if key not in grouped:
+            grouped[key] = {
+                "observed_at": observed_at,
+                "station": measurement.station,
+                "speed_km_s": None,
+                "density_per_cm3": None,
+                "temperature_k": None,
+            }
+
+        return grouped[key]
+
+    for measurement in speed_measurements:
+        if measurement.numeric_value is None:
+            continue
+
+        group = get_group(
+            measurement
+        )
+
+        group["speed_km_s"] = float(
+            measurement.numeric_value
+        )
+
+    for measurement in density_measurements:
+        if measurement.numeric_value is None:
+            continue
+
+        group = get_group(
+            measurement
+        )
+
+        group["density_per_cm3"] = float(
+            measurement.numeric_value
+        )
+
+    for measurement in (
+        temperature_measurements
+    ):
+        if measurement.numeric_value is None:
+            continue
+
+        group = get_group(
+            measurement
+        )
+
+        group["temperature_k"] = float(
+            measurement.numeric_value
+        )
+
+    ordered_values = sorted(
+        grouped.values(),
+        key=lambda item: item[
+            "observed_at"
+        ],
+    )
+
+    if len(ordered_values) > limit:
+        ordered_values = (
+            ordered_values[-limit:]
+        )
+
+    points = [
+        SolarWindTrendPoint(
+            **item
+        )
+        for item in ordered_values
+    ]
+
+    return SolarWindTrendResponse(
+        source=SOURCE_NAME,
+        count=len(points),
+        points=points,
     )

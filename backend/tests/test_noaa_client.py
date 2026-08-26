@@ -16,6 +16,15 @@ SAMPLE_RECORD = {
     "station_count": 8,
 }
 
+SOLAR_WIND_SAMPLE_RECORD = {
+    "time_tag": "2026-08-26T00:39:07",
+    "active": True,
+    "source": "SOLAR1",
+    "proton_speed": 326.42,
+    "proton_temperature": 33643,
+    "proton_density": 3.8,
+}
+
 
 class FakeResponse:
     def __init__(
@@ -196,3 +205,37 @@ def test_client_converts_network_error() -> None:
         match="request failed",
     ):
         client.fetch_planetary_k_index()
+
+def test_client_returns_solar_wind_records(
+) -> None:
+    fake_session = FakeSession(
+        FakeResponse(
+            [SOLAR_WIND_SAMPLE_RECORD]
+        )
+    )
+
+    client = NoaaSwpcClient(
+        solar_wind_url=(
+            "https://example.test/solar-wind"
+        ),
+        timeout_seconds=5,
+        session=fake_session,
+    )
+
+    result = client.fetch_solar_wind()
+
+    assert result.http_status_code == 200
+
+    assert result.records == [
+        SOLAR_WIND_SAMPLE_RECORD
+    ]
+
+    assert (
+        fake_session.requested_url
+        == "https://example.test/solar-wind"
+    )
+
+    assert (
+        fake_session.requested_timeout
+        == 5
+    )

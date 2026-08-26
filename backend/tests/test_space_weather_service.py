@@ -18,6 +18,8 @@ from services.space_weather_service import (
     get_space_weather_alert,
     get_space_weather_alerts,
     optional_integer,
+    get_kp_trend,
+    get_solar_wind_trend,
 )
 
 
@@ -350,4 +352,291 @@ def test_returns_404_when_alert_does_not_exist(
             "Space-weather alert was "
             "not found."
         )
+    )
+
+def test_builds_kp_trend(
+    monkeypatch,
+) -> None:
+    measurements = [
+        SimpleNamespace(
+            observed_at=datetime(
+                2026,
+                8,
+                1,
+                0,
+                0,
+                tzinfo=timezone.utc,
+            ),
+            numeric_value=Decimal("1.33"),
+            unit=None,
+        ),
+        SimpleNamespace(
+            observed_at=datetime(
+                2026,
+                8,
+                1,
+                3,
+                0,
+                tzinfo=timezone.utc,
+            ),
+            numeric_value=Decimal("1.67"),
+            unit=None,
+        ),
+    ]
+
+    monkeypatch.setattr(
+        (
+            "services.space_weather_service."
+            "list_measurements"
+        ),
+        lambda **kwargs: measurements,
+    )
+
+    result = get_kp_trend(
+        db=object()
+    )
+
+    assert result.source == "NOAA_SWPC"
+
+    assert (
+        result.metric_name
+        == "planetary_k_index"
+    )
+
+    assert result.count == 2
+
+    assert result.points[0].value == 1.33
+
+    assert result.points[1].value == 1.67
+
+def test_kp_trend_can_be_empty(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        (
+            "services.space_weather_service."
+            "list_measurements"
+        ),
+        lambda **kwargs: [],
+    )
+
+    result = get_kp_trend(
+        db=object()
+    )
+
+    assert result.count == 0
+
+    assert result.points == []
+
+def test_kp_trend_rejects_reversed_range(
+) -> None:
+    start = datetime(
+        2026,
+        8,
+        25,
+        tzinfo=timezone.utc,
+    )
+
+    end = datetime(
+        2026,
+        8,
+        1,
+        tzinfo=timezone.utc,
+    )
+
+    with pytest.raises(
+        HTTPException
+    ) as captured_error:
+        get_kp_trend(
+            db=object(),
+            start=start,
+            end=end,
+        )
+
+    assert (
+        captured_error.value.status_code
+        == 400
+    )
+
+def test_builds_solar_wind_trend(
+    monkeypatch,
+) -> None:
+    observed_at = datetime(
+        2026,
+        8,
+        26,
+        0,
+        39,
+        tzinfo=timezone.utc,
+    )
+
+    speed = SimpleNamespace(
+        observed_at=observed_at,
+        numeric_value=Decimal(
+            "326.42"
+        ),
+        station="SOLAR1",
+    )
+
+    density = SimpleNamespace(
+        observed_at=observed_at,
+        numeric_value=Decimal(
+            "3.8"
+        ),
+        station="SOLAR1",
+    )
+
+    temperature = SimpleNamespace(
+        observed_at=observed_at,
+        numeric_value=Decimal(
+            "33643"
+        ),
+        station="SOLAR1",
+    )
+
+    def fake_list_measurements(
+        **kwargs,
+    ):
+        metric_name = kwargs[
+            "metric_name"
+        ]
+
+        if (
+            metric_name
+            == "solar_wind_speed"
+        ):
+            return [speed]
+
+        if (
+            metric_name
+            == "solar_wind_density"
+        ):
+            return [density]
+
+        if (
+            metric_name
+            == "solar_wind_temperature"
+        ):
+            return [temperature]
+
+        return []
+
+    monkeypatch.setattr(
+        (
+            "services.space_weather_service."
+            "list_measurements"
+        ),
+        fake_list_measurements,
+    )
+
+    result = get_solar_wind_trend(
+        db=object()
+    )
+
+    assert result.count == 1
+
+    point = result.points[0]
+
+    assert point.station == "SOLAR1"
+
+    assert point.speed_km_s == 326.42
+
+    assert (
+        point.density_per_cm3
+        == 3.8
+    )
+
+    assert (
+        point.temperature_k
+        == 33643
+    )
+
+def test_solar_wind_trend_allows_missing_metrics(
+    monkeypatch,
+) -> None:
+    observed_at = datetime(
+        2026,
+        8,
+        26,
+        tzinfo=timezone.utc,
+    )
+
+    speed = SimpleNamespace(
+        observed_at=observed_at,
+        numeric_value=Decimal(
+            "400"
+        ),
+        station="SOLAR1",
+    )
+
+    def fake_list_measurements(
+        **kwargs,
+    ):
+        if (
+            kwargs["metric_name"]
+            == "solar_wind_speed"
+        ):
+            return [speed]
+
+        return []
+
+    monkeypatch.setattr(
+        (
+            "services.space_weather_service."
+            "list_measurements"
+        ),
+        fake_list_measurements,
+    )
+
+    result = get_solar_wind_trend(
+        db=object()
+    )
+
+    assert result.count == 1
+
+    assert (
+        result.points[0].speed_km_s
+        == 400
+    )
+
+    assert (
+        result.points[0]
+        .density_per_cm3
+        is None
+    )
+
+    assert (
+        result.points[0]
+        .temperature_k
+        is None
+    )
+
+def test_solar_wind_trend_rejects_reversed_range(
+) -> None:
+    start = datetime(
+        2026,
+        8,
+        26,
+        tzinfo=timezone.utc,
+    )
+
+    end = datetime(
+        2026,
+        8,
+        20,
+        tzinfo=timezone.utc,
+    )
+
+    with pytest.raises(
+        HTTPException
+    ) as captured_error:
+        get_solar_wind_trend(
+            db=object(),
+            start=start,
+            end=end,
+        )
+
+    assert (
+        captured_error.value.status_code
+        == 400
     )

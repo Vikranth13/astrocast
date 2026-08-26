@@ -44,6 +44,7 @@ class NoaaSwpcClient:
         timeout_seconds: int | None = None,
         session: requests.Session | None = None,
         alerts_url: str | None = None,
+        solar_wind_url: str | None = None,
     ):
         self.planetary_k_index_url = (
             planetary_k_index_url
@@ -58,6 +59,11 @@ class NoaaSwpcClient:
         self.timeout_seconds = (
             timeout_seconds
             or settings.noaa_request_timeout_seconds
+        )
+
+        self.solar_wind_url = (
+            solar_wind_url
+            or settings.noaa_solar_wind_url
         )
 
         self.session = session or requests.Session()
@@ -156,4 +162,16 @@ class NoaaSwpcClient:
         return self._fetch_json_array(
             url=self.alerts_url,
             product_name="alerts",
+        )
+
+    def fetch_solar_wind(
+        self,
+    ) -> NoaaFetchResult:
+        """
+        Fetch NOAA real-time solar-wind plasma data.
+        """
+
+        return self._fetch_json_array(
+            url=self.solar_wind_url,
+            product_name="solar wind",
         )

@@ -37,6 +37,11 @@ class Settings(BaseSettings):
         "https://services.swpc.noaa.gov/products/alerts.json"
     )
 
+    noaa_solar_wind_url: str = (
+    "https://services.swpc.noaa.gov/json/rtsw/"
+    "rtsw_wind_1m.json"
+    )
+
     noaa_request_timeout_seconds: int = 15
 
     model_config = SettingsConfigDict(

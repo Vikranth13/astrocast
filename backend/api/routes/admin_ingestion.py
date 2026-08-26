@@ -13,6 +13,7 @@ from services.noaa_ingestion_service import (
     NoaaIngestionExternalError,
     ingest_noaa_planetary_k_index,
     ingest_noaa_alerts,
+    ingest_noaa_solar_wind,
 )
 
 
@@ -78,6 +79,37 @@ def run_noaa_alert_ingestion(
 
     try:
         return ingest_noaa_alerts(
+            db
+        )
+
+    except NoaaIngestionExternalError as error:
+        raise HTTPException(
+            status_code=502,
+            detail=str(error),
+        ) from error
+
+    except NoaaIngestionDatabaseError as error:
+        raise HTTPException(
+            status_code=500,
+            detail=str(error),
+        ) from error
+
+    except NoaaIngestionError as error:
+        raise HTTPException(
+            status_code=500,
+            detail=str(error),
+        ) from error
+
+@router.post(
+    "/noaa/solar-wind",
+    response_model=IngestionResult,
+    summary="Run NOAA solar-wind ingestion",
+)
+def run_noaa_solar_wind_ingestion(
+    db: Session = Depends(get_db),
+):
+    try:
+        return ingest_noaa_solar_wind(
             db
         )
 
