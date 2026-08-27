@@ -60,6 +60,13 @@ AlertSeverity = Literal[
     "S5",
 ]
 
+RiskLevel = Literal[
+    "low",
+    "moderate",
+    "high",
+    "severe",
+]
+
 
 class SpaceWeatherFreshness(BaseModel):
     """
@@ -215,3 +222,72 @@ class SolarWindTrendResponse(BaseModel):
     points: list[
         SolarWindTrendPoint
     ]
+
+class SpaceWeatherRiskFactor(BaseModel):
+    """
+    One deterministic factor that contributed
+    to the AstroCast risk assessment.
+    """
+
+    rule_id: str
+
+    factor: str
+
+    value: float
+
+    unit: str
+
+    description: str
+
+
+class SpaceWeatherRiskAssessment(BaseModel):
+    """
+    Deterministic AstroCast interpretation of
+    current space-weather measurements.
+    """
+
+    level: RiskLevel
+
+    contributing_factors: list[
+        SpaceWeatherRiskFactor
+    ]
+
+    rule_ids: list[str]
+
+class SpaceWeatherRiskRawValues(BaseModel):
+    """
+    Raw measurements used by the deterministic
+    AstroCast risk assessment.
+    """
+
+    kp: float = Field(
+        ge=0,
+        le=9,
+    )
+
+    kp_observed_at: datetime
+
+    solar_wind_speed_km_s: float | None = None
+
+    solar_wind_speed_observed_at: datetime | None = None
+
+    solar_wind_density_per_cm3: float | None = None
+
+    solar_wind_density_observed_at: datetime | None = None
+
+    solar_wind_station: str | None = None
+
+
+class CurrentSpaceWeatherRiskResponse(BaseModel):
+    """
+    Current deterministic AstroCast
+    space-weather risk assessment.
+    """
+
+    source: str
+
+    assessed_at: datetime
+
+    raw_values: SpaceWeatherRiskRawValues
+
+    risk: SpaceWeatherRiskAssessment

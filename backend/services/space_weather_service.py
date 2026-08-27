@@ -24,8 +24,11 @@ from schemas.space_weather import (
     SpaceWeatherTrendResponse,
     SolarWindTrendPoint,
     SolarWindTrendResponse,
+    CurrentSpaceWeatherRiskResponse,
+    SpaceWeatherRiskRawValues,
 )
 from services.space_weather_risk_service import (
+    assess_space_weather_risk,
     classify_planetary_k_index,
 )
 
@@ -590,4 +593,140 @@ def get_solar_wind_trend(
         source=SOURCE_NAME,
         count=len(points),
         points=points,
+    )
+
+def get_current_space_weather_risk(
+    db: Session,
+) -> CurrentSpaceWeatherRiskResponse:
+    """
+    Build the current deterministic AstroCast
+    space-weather risk assessment from the latest
+    stored measurements.
+
+    Kp is required.
+
+    Solar-wind speed and density are optional
+    supporting measurements.
+    """
+
+    kp_measurement = get_latest_measurement(
+        db=db,
+        source=SOURCE_NAME,
+        metric_name=METRIC_NAME,
+    )
+
+    if kp_measurement is None:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "No stored planetary K-index "
+                "measurement is available. "
+                "Run NOAA ingestion first."
+            ),
+        )
+
+    if kp_measurement.numeric_value is None:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Stored planetary K-index "
+                "measurement has no numeric value."
+            ),
+        )
+
+    speed_measurement = (
+        get_latest_measurement(
+            db=db,
+            source=SOURCE_NAME,
+            metric_name=(
+                SOLAR_WIND_SPEED_METRIC
+            ),
+        )
+    )
+
+    density_measurement = (
+        get_latest_measurement(
+            db=db,
+            source=SOURCE_NAME,
+            metric_name=(
+                SOLAR_WIND_DENSITY_METRIC
+            ),
+        )
+    )
+
+    speed = None
+    speed_observed_at = None
+
+    if (
+        speed_measurement is not None
+        and speed_measurement.numeric_value
+        is not None
+    ):
+        speed = float(
+            speed_measurement.numeric_value
+        )
+
+        speed_observed_at = ensure_utc(
+            speed_measurement.observed_at
+        )
+
+    density = None
+    density_observed_at = None
+
+    if (
+        density_measurement is not None
+        and density_measurement.numeric_value
+        is not None
+    ):
+        density = float(
+            density_measurement.numeric_value
+        )
+
+        density_observed_at = ensure_utc(
+            density_measurement.observed_at
+        )
+
+    station = None
+
+    if speed_measurement is not None:
+        station = speed_measurement.station
+
+    elif density_measurement is not None:
+        station = density_measurement.station
+
+    risk = assess_space_weather_risk(
+        kp=kp_measurement.numeric_value,
+        solar_wind_speed_km_s=speed,
+        solar_wind_density_per_cm3=density,
+    )
+
+    return CurrentSpaceWeatherRiskResponse(
+        source=SOURCE_NAME,
+        assessed_at=datetime.now(
+            timezone.utc
+        ),
+        raw_values=(
+            SpaceWeatherRiskRawValues(
+                kp=float(
+                    kp_measurement.numeric_value
+                ),
+                kp_observed_at=ensure_utc(
+                    kp_measurement.observed_at
+                ),
+                solar_wind_speed_km_s=(
+                    speed
+                ),
+                solar_wind_speed_observed_at=(
+                    speed_observed_at
+                ),
+                solar_wind_density_per_cm3=(
+                    density
+                ),
+                solar_wind_density_observed_at=(
+                    density_observed_at
+                ),
+                solar_wind_station=station,
+            )
+        ),
+        risk=risk,
     )

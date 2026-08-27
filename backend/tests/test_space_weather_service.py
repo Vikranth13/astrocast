@@ -20,6 +20,7 @@ from services.space_weather_service import (
     optional_integer,
     get_kp_trend,
     get_solar_wind_trend,
+    get_current_space_weather_risk,
 )
 
 
@@ -639,4 +640,211 @@ def test_solar_wind_trend_rejects_reversed_range(
     assert (
         captured_error.value.status_code
         == 400
+    )
+
+def test_builds_current_space_weather_risk(
+    monkeypatch,
+) -> None:
+    kp_time = datetime(
+        2026,
+        8,
+        26,
+        0,
+        0,
+        tzinfo=timezone.utc,
+    )
+
+    solar_time = datetime(
+        2026,
+        8,
+        26,
+        1,
+        0,
+        tzinfo=timezone.utc,
+    )
+
+    kp_measurement = SimpleNamespace(
+        metric_name=(
+            "planetary_k_index"
+        ),
+        numeric_value=Decimal(
+            "5.0"
+        ),
+        observed_at=kp_time,
+        station=None,
+    )
+
+    speed_measurement = SimpleNamespace(
+        metric_name=(
+            "solar_wind_speed"
+        ),
+        numeric_value=Decimal(
+            "550"
+        ),
+        observed_at=solar_time,
+        station="SOLAR1",
+    )
+
+    density_measurement = SimpleNamespace(
+        metric_name=(
+            "solar_wind_density"
+        ),
+        numeric_value=Decimal(
+            "12"
+        ),
+        observed_at=solar_time,
+        station="SOLAR1",
+    )
+
+    def fake_get_latest_measurement(
+        *,
+        db,
+        source,
+        metric_name,
+    ):
+        if (
+            metric_name
+            == "planetary_k_index"
+        ):
+            return kp_measurement
+
+        if (
+            metric_name
+            == "solar_wind_speed"
+        ):
+            return speed_measurement
+
+        if (
+            metric_name
+            == "solar_wind_density"
+        ):
+            return density_measurement
+
+        return None
+
+    monkeypatch.setattr(
+        (
+            "services.space_weather_service."
+            "get_latest_measurement"
+        ),
+        fake_get_latest_measurement,
+    )
+
+    result = (
+        get_current_space_weather_risk(
+            db=object()
+        )
+    )
+
+    assert result.raw_values.kp == 5.0
+
+    assert (
+        result.raw_values
+        .solar_wind_speed_km_s
+        == 550.0
+    )
+
+    assert (
+        result.raw_values
+        .solar_wind_density_per_cm3
+        == 12.0
+    )
+
+    assert (
+        result.raw_values
+        .solar_wind_station
+        == "SOLAR1"
+    )
+
+    assert result.risk.level == "high"
+
+    assert (
+        "KP_G1_G2"
+        in result.risk.rule_ids
+    )
+
+    assert (
+        "SW_FAST_DENSE_ESCALATION"
+        in result.risk.rule_ids
+    )
+
+def test_current_risk_allows_missing_solar_wind(
+    monkeypatch,
+) -> None:
+    kp_measurement = SimpleNamespace(
+        numeric_value=Decimal(
+            "5.0"
+        ),
+        observed_at=datetime(
+            2026,
+            8,
+            26,
+            tzinfo=timezone.utc,
+        ),
+        station=None,
+    )
+
+    def fake_get_latest_measurement(
+        *,
+        db,
+        source,
+        metric_name,
+    ):
+        if (
+            metric_name
+            == "planetary_k_index"
+        ):
+            return kp_measurement
+
+        return None
+
+    monkeypatch.setattr(
+        (
+            "services.space_weather_service."
+            "get_latest_measurement"
+        ),
+        fake_get_latest_measurement,
+    )
+
+    result = (
+        get_current_space_weather_risk(
+            db=object()
+        )
+    )
+
+    assert result.risk.level == "moderate"
+
+    assert (
+        result.raw_values
+        .solar_wind_speed_km_s
+        is None
+    )
+
+    assert (
+        result.raw_values
+        .solar_wind_density_per_cm3
+        is None
+    )
+
+def test_current_risk_returns_404_without_kp(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        (
+            "services.space_weather_service."
+            "get_latest_measurement"
+        ),
+        lambda **kwargs: None,
+    )
+
+    with pytest.raises(
+        HTTPException
+    ) as captured_error:
+        get_current_space_weather_risk(
+            db=object()
+        )
+
+    assert (
+        captured_error.value.status_code
+        == 404
     )

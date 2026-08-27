@@ -28,6 +28,10 @@ from schemas.space_weather import (
     SpaceWeatherTrendResponse,
     SolarWindTrendPoint,
     SolarWindTrendResponse,
+    CurrentSpaceWeatherRiskResponse,
+    SpaceWeatherRiskAssessment,
+    SpaceWeatherRiskFactor,
+    SpaceWeatherRiskRawValues,
 )
 from services.noaa_ingestion_service import (
     NoaaIngestionExternalError,
@@ -662,3 +666,102 @@ def test_solar_wind_ingestion_route_returns_summary(
         "skipped": 4101,
         "failed": 0,
     }
+
+def test_current_risk_route(
+    monkeypatch,
+) -> None:
+    expected_response = (
+        CurrentSpaceWeatherRiskResponse(
+            source="NOAA_SWPC",
+            assessed_at=datetime(
+                2026,
+                8,
+                26,
+                2,
+                0,
+                tzinfo=timezone.utc,
+            ),
+            raw_values=(
+                SpaceWeatherRiskRawValues(
+                    kp=5.0,
+                    kp_observed_at=datetime(
+                        2026,
+                        8,
+                        26,
+                        0,
+                        0,
+                        tzinfo=timezone.utc,
+                    ),
+                    solar_wind_speed_km_s=550.0,
+                    solar_wind_speed_observed_at=(
+                        datetime(
+                            2026,
+                            8,
+                            26,
+                            1,
+                            0,
+                            tzinfo=timezone.utc,
+                        )
+                    ),
+                    solar_wind_density_per_cm3=12.0,
+                    solar_wind_density_observed_at=(
+                        datetime(
+                            2026,
+                            8,
+                            26,
+                            1,
+                            0,
+                            tzinfo=timezone.utc,
+                        )
+                    ),
+                    solar_wind_station="SOLAR1",
+                )
+            ),
+            risk=SpaceWeatherRiskAssessment(
+                level="high",
+                contributing_factors=[
+                    SpaceWeatherRiskFactor(
+                        rule_id="KP_G1_G2",
+                        factor=(
+                            "planetary_k_index"
+                        ),
+                        value=5.0,
+                        unit="index",
+                        description=(
+                            "Kp supporting factor"
+                        ),
+                    )
+                ],
+                rule_ids=[
+                    "KP_G1_G2",
+                    "SW_FAST_DENSE_ESCALATION",
+                ],
+            ),
+        )
+    )
+
+    monkeypatch.setattr(
+        space_weather,
+        "get_current_space_weather_risk",
+        lambda db: expected_response,
+    )
+
+    response = client.get(
+        "/api/space-weather/risk"
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["risk"]["level"] == "high"
+
+    assert (
+        body["raw_values"]["kp"]
+        == 5.0
+    )
+
+    assert (
+        "SW_FAST_DENSE_ESCALATION"
+        in body["risk"]["rule_ids"]
+    )

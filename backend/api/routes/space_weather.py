@@ -14,6 +14,7 @@ from schemas.space_weather import (
     SpaceWeatherAlertResponse,
     SpaceWeatherTrendResponse,
     SolarWindTrendResponse,
+    CurrentSpaceWeatherRiskResponse,
 )
 from services.space_weather_service import (
     get_current_space_weather,
@@ -21,6 +22,7 @@ from services.space_weather_service import (
     get_space_weather_alert,
     get_kp_trend,
     get_solar_wind_trend,
+    get_current_space_weather_risk,
 )
 
 
@@ -143,4 +145,21 @@ def solar_wind_trend(
         start=start,
         end=end,
         limit=limit,
+    )
+
+@router.get(
+    "/risk",
+    response_model=(
+        CurrentSpaceWeatherRiskResponse
+    ),
+    summary=(
+        "Get current deterministic "
+        "space-weather risk"
+    ),
+)
+def current_space_weather_risk(
+    db: Session = Depends(get_db),
+):
+    return get_current_space_weather_risk(
+        db=db
     )
