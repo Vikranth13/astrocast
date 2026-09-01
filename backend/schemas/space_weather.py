@@ -80,6 +80,24 @@ class SpaceWeatherFreshness(BaseModel):
     )
 
 
+class SpaceWeatherExplanation(BaseModel):
+    """
+    Deterministic plain-English interpretation of a
+    space-weather response.
+
+    The text is generated from stored measurements by
+    rule-based templates. No part of it is produced by
+    a language model, and it never contains a value
+    that is not present in the structured response.
+    """
+
+    summary: str
+
+    details: list[str]
+
+    caveats: list[str]
+
+
 class GeomagneticActivity(BaseModel):
     """
     AstroCast interpretation of the NOAA
@@ -139,6 +157,8 @@ class CurrentSpaceWeatherResponse(BaseModel):
 
     explanation: str
 
+    explanation_detail: SpaceWeatherExplanation
+
 class SpaceWeatherAlertResponse(BaseModel):
     """
     Public representation of one persisted
@@ -179,6 +199,19 @@ class SpaceWeatherAlertListResponse(BaseModel):
     alerts: list[
         SpaceWeatherAlertResponse
     ]
+
+class SpaceWeatherAlertDetailResponse(
+    SpaceWeatherAlertResponse
+):
+    """
+    One alert with its deterministic explanation.
+
+    The list endpoint deliberately stays lean and
+    returns SpaceWeatherAlertResponse instead.
+    """
+
+    explanation: SpaceWeatherExplanation
+
 
 class SpaceWeatherTrendPoint(BaseModel):
     observed_at: datetime
@@ -291,3 +324,5 @@ class CurrentSpaceWeatherRiskResponse(BaseModel):
     raw_values: SpaceWeatherRiskRawValues
 
     risk: SpaceWeatherRiskAssessment
+
+    explanation: SpaceWeatherExplanation

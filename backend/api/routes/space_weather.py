@@ -10,8 +10,8 @@ from schemas.space_weather import (
     AlertStatus,
     AlertType,
     CurrentSpaceWeatherResponse,
+    SpaceWeatherAlertDetailResponse,
     SpaceWeatherAlertListResponse,
-    SpaceWeatherAlertResponse,
     SpaceWeatherTrendResponse,
     SolarWindTrendResponse,
     CurrentSpaceWeatherRiskResponse,
@@ -86,7 +86,7 @@ def list_space_weather_alerts(
 @router.get(
     "/alerts/{alert_id}",
     response_model=(
-        SpaceWeatherAlertResponse
+        SpaceWeatherAlertDetailResponse
     ),
     summary="Get space-weather alert",
 )

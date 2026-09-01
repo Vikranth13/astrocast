@@ -21,8 +21,10 @@ from schemas.space_weather import (
     CurrentSpaceWeatherResponse,
     GeomagneticActivity,
     PlanetaryKpFacts,
+    SpaceWeatherAlertDetailResponse,
     SpaceWeatherAlertListResponse,
     SpaceWeatherAlertResponse,
+    SpaceWeatherExplanation,
     SpaceWeatherFreshness,
     SpaceWeatherTrendPoint,
     SpaceWeatherTrendResponse,
@@ -131,6 +133,17 @@ def test_current_space_weather_route(
             ),
             explanation=(
                 "Test explanation."
+            ),
+            explanation_detail=(
+                SpaceWeatherExplanation(
+                    summary="Test summary.",
+                    details=[
+                        "Test detail.",
+                    ],
+                    caveats=[
+                        "Test caveat.",
+                    ],
+                )
             ),
         )
     )
@@ -374,7 +387,7 @@ def test_alert_detail_route(
     monkeypatch,
 ) -> None:
     expected_response = (
-        SpaceWeatherAlertResponse(
+        SpaceWeatherAlertDetailResponse(
             id=1,
             source="NOAA_SWPC",
             external_id="EF3A:3727",
@@ -401,6 +414,15 @@ def test_alert_detail_route(
                 21,
                 21,
                 tzinfo=timezone.utc,
+            ),
+            explanation=(
+                SpaceWeatherExplanation(
+                    summary="Test summary.",
+                    details=[],
+                    caveats=[
+                        "Test caveat.",
+                    ],
+                )
             ),
         )
     )
@@ -736,6 +758,17 @@ def test_current_risk_route(
                     "KP_G1_G2",
                     "SW_FAST_DENSE_ESCALATION",
                 ],
+            ),
+            explanation=(
+                SpaceWeatherExplanation(
+                    summary="Test summary.",
+                    details=[
+                        "Test detail.",
+                    ],
+                    caveats=[
+                        "Test caveat.",
+                    ],
+                )
             ),
         )
     )

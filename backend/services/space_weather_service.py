@@ -18,6 +18,7 @@ from schemas.space_weather import (
     CurrentSpaceWeatherResponse,
     PlanetaryKpFacts,
     SpaceWeatherFreshness,
+    SpaceWeatherAlertDetailResponse,
     SpaceWeatherAlertListResponse,
     SpaceWeatherAlertResponse,
     SpaceWeatherTrendPoint,
@@ -30,6 +31,15 @@ from schemas.space_weather import (
 from services.space_weather_risk_service import (
     assess_space_weather_risk,
     classify_planetary_k_index,
+)
+# format_age is re-exported from this module because
+# it lived here before the explanation engine existed.
+from services.explanation_service import (  # noqa: F401
+    build_alert_explanation,
+    build_current_explanation,
+    build_risk_explanation,
+    describe_freshness,
+    format_age,
 )
 
 from repositories.space_weather_alert_repository import (
@@ -137,26 +147,7 @@ def optional_integer(
         return None
 
 
-def format_age(
-    age_minutes: int,
-) -> str:
-    """
-    Convert a minute count into readable text.
-    """
-
-    if age_minutes < 60:
-        return f"{age_minutes} minutes"
-
-    hours = age_minutes // 60
-    remaining_minutes = age_minutes % 60
-
-    if remaining_minutes == 0:
-        return f"{hours} hours"
-
-    return (
-        f"{hours} hours and "
-        f"{remaining_minutes} minutes"
-    )
+# format_age is imported above and re-exported.
 
 
 def get_current_space_weather(
@@ -222,31 +213,21 @@ def get_current_space_weather(
         ),
     )
 
-    if geomagnetic_activity.noaa_scale is None:
-        activity_sentence = (
-            "This is below NOAA geomagnetic "
-            "storm level."
+    explanation_detail = (
+        build_current_explanation(
+            kp=kp,
+            activity=geomagnetic_activity,
+            freshness=freshness,
         )
-
-    else:
-        activity_sentence = (
-            "This meets NOAA "
-            f"{geomagnetic_activity.noaa_scale} "
-            f"({geomagnetic_activity.label}) level."
-        )
-
-    readable_age = format_age(
-        freshness.age_minutes
     )
 
+    # The flat string is kept for the existing
+    # frontend card, which renders one paragraph.
+    # The structured explanation carries the full
+    # interpretation.
     explanation = (
-        "The latest observed planetary "
-        f"K-index is {kp:.2f}. "
-        f"{activity_sentence} "
-        "The observation is approximately "
-        f"{readable_age} old and AstroCast "
-        f"classifies the source data as "
-        f"{freshness.status}."
+        f"{explanation_detail.summary} "
+        f"{describe_freshness(freshness)}"
     )
 
     return CurrentSpaceWeatherResponse(
@@ -264,6 +245,9 @@ def get_current_space_weather(
         ),
         facts=facts,
         explanation=explanation,
+        explanation_detail=(
+            explanation_detail
+        ),
     )
 
 def calculate_alert_status(
@@ -373,7 +357,12 @@ def get_space_weather_alerts(
 def get_space_weather_alert(
     db: Session,
     alert_id: int,
-) -> SpaceWeatherAlertResponse:
+) -> SpaceWeatherAlertDetailResponse:
+    """
+    Return one stored alert with its deterministic
+    explanation.
+    """
+
     alert = get_alert_by_id(
         db,
         alert_id,
@@ -388,8 +377,21 @@ def get_space_weather_alert(
             ),
         )
 
-    return build_alert_response(
+    base = build_alert_response(
         alert
+    )
+
+    explanation = build_alert_explanation(
+        alert_type=base.alert_type,
+        severity=base.severity,
+        status=base.status,
+        issued_at=base.issued_at,
+        expires_at=base.expires_at,
+    )
+
+    return SpaceWeatherAlertDetailResponse(
+        **base.model_dump(),
+        explanation=explanation,
     )
 
 def get_kp_trend(
@@ -700,6 +702,22 @@ def get_current_space_weather_risk(
         solar_wind_density_per_cm3=density,
     )
 
+    kp = float(
+        kp_measurement.numeric_value
+    )
+
+    activity = classify_planetary_k_index(
+        kp
+    )
+
+    explanation = build_risk_explanation(
+        risk=risk,
+        activity=activity,
+        kp=kp,
+        solar_wind_speed_km_s=speed,
+        solar_wind_density_per_cm3=density,
+    )
+
     return CurrentSpaceWeatherRiskResponse(
         source=SOURCE_NAME,
         assessed_at=datetime.now(
@@ -729,4 +747,5 @@ def get_current_space_weather_risk(
             )
         ),
         risk=risk,
+        explanation=explanation,
     )
