@@ -1,0 +1,18 @@
+meta {
+  name: Ingest alerts
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/admin/ingestion/noaa/alerts
+  body: none
+  auth: none
+}
+
+docs {
+  fetched can exceed normalized here. NOAA reissues a
+  notification under the same serial, and only the
+  newest version survives parsing. That gap is not a
+  skipped duplicate.
+}

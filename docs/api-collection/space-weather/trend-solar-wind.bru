@@ -1,0 +1,15 @@
+meta {
+  name: Trend - solar wind
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/api/space-weather/trends/solar-wind?limit=20
+  body: none
+  auth: none
+}
+
+params:query {
+  limit: 20
+}

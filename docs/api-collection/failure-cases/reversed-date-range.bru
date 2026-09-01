@@ -1,0 +1,21 @@
+meta {
+  name: 400 - reversed date range
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/space-weather/alerts?issued_start=2026-08-31T00:00:00Z&issued_end=2026-08-01T00:00:00Z
+  body: none
+  auth: none
+}
+
+params:query {
+  issued_start: 2026-08-31T00:00:00Z
+  issued_end: 2026-08-01T00:00:00Z
+}
+
+docs {
+  issued_start after issued_end is rejected by the
+  service rather than returning an empty list.
+}

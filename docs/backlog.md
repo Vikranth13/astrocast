@@ -1,92 +1,83 @@
 # AstroCast Backlog
 
-## Week 2 Must
+Categories follow the roadmap: **Must** is required for the current week's definition of done, **Should** improves quality without blocking it, **Later** is deliberately out of scope.
 
-These items are required for the Week 2 definition of done.
+## Week 3 — Complete
 
-- [ ] Preserve all existing Week 1 routes and frontend forecast behavior.
-- [ ] Run PostgreSQL locally with a documented command.
-- [ ] Prefer Docker Compose for local PostgreSQL.
-- [ ] Install SQLAlchemy.
-- [ ] Install Alembic.
-- [ ] Install a PostgreSQL driver.
-- [ ] Centralize `DATABASE_URL` and API configuration.
-- [ ] Create database engine and session modules.
-- [ ] Verify FastAPI can connect to PostgreSQL.
-- [ ] Add database health verification.
-- [ ] Create a `locations` model.
-- [ ] Create a `space_weather_alerts` model.
-- [ ] Create a `space_weather_measurements` model.
-- [ ] Create an `api_fetch_logs` model.
-- [ ] Create the first Alembic migration.
-- [ ] Apply, roll back, and reapply the migration.
-- [ ] Add unique constraints that support deduplication.
-- [ ] Document the schema in `docs/database.md`.
-- [ ] Choose one NOAA SWPC endpoint.
-- [ ] Create a source-specific NOAA client.
-- [ ] Add timeout and error handling to the NOAA client.
-- [ ] Inspect and document the external JSON structure.
-- [ ] Add Pydantic source-response schemas where practical.
-- [ ] Parse NOAA data into normalized internal records.
-- [ ] Create an ingestion service.
-- [ ] Store new normalized records.
-- [ ] Skip duplicate records.
-- [ ] Write an API fetch log for every successful attempt.
-- [ ] Write an API fetch log for every failed attempt.
-- [ ] Return fetched, inserted, skipped, and failed counts.
-- [ ] Create `POST /api/admin/ingestion/noaa`.
-- [ ] Verify repeated ingestion does not add duplicates.
-- [ ] Create simple rule-based risk classification.
-- [ ] Create `GET /api/space-weather/current`.
-- [ ] Return source timestamp and freshness.
-- [ ] Return risk level and source facts.
-- [ ] Return a plain-English explanation.
-- [ ] Add one real space-weather frontend card.
-- [ ] Add parser unit tests.
-- [ ] Add risk-classification unit tests.
-- [ ] Add a mocked ingestion integration test.
-- [ ] Update README setup instructions.
-- [ ] Update the environment-variable example.
-- [ ] Create the Week 2 progress report.
-- [ ] Capture screenshots or API examples.
-- [ ] Merge or tag Week 2 only after the definition of done passes.
+- [x] Separate clients, repositories, services, schemas, and routes.
+- [x] Remove database operations from route functions.
+- [x] Response DTOs that do not expose ORM objects.
+- [x] Source timestamps and data-freshness fields.
+- [x] `GET /api/space-weather/alerts` with severity, type, source, issued-date, and status filters.
+- [x] `GET /api/space-weather/alerts/{id}` returning 404 for missing records.
+- [x] Validate filter values.
+- [x] Store a time-series metric and expose `GET /api/space-weather/trends/kp`.
+- [x] Support start, end, and limit parameters; return ordered chart-friendly points.
+- [x] `GET /api/space-weather/trends/solar-wind`.
+- [x] Risk engine with Low, Moderate, High, and Severe thresholds.
+- [x] Keep raw scientific values separate from interpreted risk.
+- [x] Return contributing factors and rule identifiers.
+- [x] Threshold boundary tests.
+- [x] Deterministic explanation templates for Kp, solar wind, alerts, aurora implications, and technology impacts.
+- [x] Caveats where the data cannot support a local conclusion.
+- [x] Explanations available in current and detail responses.
+- [x] Global exception handlers and a standard error envelope.
+- [x] Timeouts and bounded retries for transient source errors.
+- [x] Serve stored data during an external outage, verified against a live database.
+- [x] Bruno request collection covering every route plus failure cases.
+- [x] Update OpenAPI descriptions and `docs/api.md`.
+- [x] Week 3 progress report.
+
+Fixed during Week 3 verification, outside the listed tasks:
+
+- [x] Ingestion counter semantics. `normalized_count` now reconciles every source; superseded alerts are no longer reported as skipped duplicates.
+- [x] Ingestion 502 responses no longer echo upstream exception text.
+- [x] Removed superseded commented-out code from `main.py` and `noaa_alert_parser.py`.
+
+## Week 4 — Must
+
+Multi-page frontend built against mock data first, so layout work does not wait on backend endpoints.
+
+- [ ] Add React Router with Dashboard, Observe Tonight, Space Weather, Alerts, Trends, Learn, and About routes.
+- [ ] Desktop and mobile navigation.
+- [ ] Page-level loading, empty, and error patterns.
+- [ ] Shared `Card`, `MetricCard`, `SeverityBadge`, `SectionHeader`, `LoadingState`, `ErrorState`, `EmptyState`, and `DataFreshness` components.
+- [ ] Night-friendly colour and typography system.
+- [ ] Dashboard built on mock data.
+- [ ] Move and improve the Week 1 forecast into the Observe Tonight page.
+- [ ] Space Weather and Alerts pages with severity badges and filters.
+- [ ] Recharts line charts on mock time series.
+- [ ] Learn page concept cards.
+- [ ] Responsive and keyboard-navigation review.
+- [ ] Week 4 screenshots and report.
 
 ## Should
 
-These improvements support quality but must not delay the required work.
+Quality improvements that must not delay required work.
 
-- [ ] Add `.env.example`.
-- [ ] Add structured backend logging.
-- [ ] Add explicit response schemas for ingestion endpoints.
-- [ ] Save a sanitized NOAA response fixture for tests.
-- [ ] Add a source-freshness label to the frontend.
-- [ ] Add helpful empty-state behavior when NOAA data has not been ingested.
-- [ ] Add clear admin-endpoint error responses.
-- [ ] Add type hints and focused docstrings to new backend modules.
-- [ ] Add a Postman or Bruno request collection.
-- [ ] Add location disambiguation for cities sharing the same name.
-- [ ] Display city, region, and country before final location selection.
-- [ ] Request forecasts using selected coordinates.
-- [ ] Improve failed-search UI so result cards cannot be mistaken for valid output.
-- [ ] Replace the fixed first-day 10:00 PM selection with the next appropriate local observing time.
-- [ ] Remove or integrate unused placeholder frontend components.
+- [ ] Switch the frontend space-weather card to `explanation_detail` and render caveats distinctly.
+- [ ] Structured backend logging.
+- [ ] Authenticate the ingestion administration routes.
+- [ ] Scheduled ingestion instead of manual runs.
+- [ ] Location disambiguation for cities sharing a name; show region and country before selection.
+- [ ] Persist searched locations to the `locations` table.
+- [ ] Replace the fixed 10:00 PM forecast hour with the next appropriate local observing time.
+- [ ] Improve failed-search UI so stale cards cannot be mistaken for valid output.
+- [ ] Update corrected NOAA measurements rather than skipping them.
+- [ ] Frontend TypeScript interfaces regenerated from the OpenAPI schema.
+
+## Week 8 — Must
+
+- [ ] Replace `backend/requirements.txt` with a trimmed runtime dependency list. It is currently a full `pip freeze` pinning jupyter, streamlit, scikit-learn, matplotlib, seaborn, folium, and pyarrow, none of which AstroCast imports. Left alone during Week 3 because changing it mid-week risks breaking the working virtual environment for no Week 3 benefit, but it would produce a needlessly large Docker image and slow CI.
 
 ## Later
 
-These items are intentionally outside Week 2.
+Outside the current milestone.
 
-- Multiple NOAA sources
-- NASA DONKI integration
-- User accounts
-- Favorite locations
-- Notifications
-- AI-generated summaries
-- Historical trend dashboards
-- Full frontend redesign
+- NASA DONKI event enrichment
+- User accounts, saved locations, notifications
+- AI summary layer over validated facts
 - Interactive sky maps
 - Observation journal
-- Advanced object-specific observing scores
 - Mobile application
-- Cloud deployment
-- GitHub Actions
-- Replacing FastAPI with Spring Boot
+- Partial-record ingestion, populating `failed_count`

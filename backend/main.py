@@ -41,8 +41,66 @@ async def lifespan(app: FastAPI):
     yield
 
 
+API_DESCRIPTION = """
+AstroCast combines local observing conditions with NOAA space-weather
+data to describe what is happening above Earth and why it matters for
+observing.
+
+Space-weather reads are served from stored measurements, not by calling
+NOAA on each request, so they stay available during an upstream outage.
+Ingestion is triggered separately through the administration routes.
+
+Interpretation is deterministic. Risk levels and explanations come from
+rule engines with stated thresholds, never from a language model.
+
+Errors share one envelope:
+
+    {"error": {"code": "not_found", "message": "...", "details": null}}
+"""
+
+OPENAPI_TAGS = [
+    {
+        "name": "system",
+        "description": (
+            "Service and database health."
+        ),
+    },
+    {
+        "name": "observe",
+        "description": (
+            "Local observing conditions and "
+            "stargazing scores for a city."
+        ),
+    },
+    {
+        "name": "astronomy",
+        "description": (
+            "NASA astronomy content."
+        ),
+    },
+    {
+        "name": "space-weather",
+        "description": (
+            "Current conditions, alerts, historical "
+            "trends, and deterministic risk. Served "
+            "from stored data."
+        ),
+    },
+    {
+        "name": "admin-ingestion",
+        "description": (
+            "Manual NOAA ingestion runs. Development "
+            "only and not yet authenticated."
+        ),
+    },
+]
+
+
 app = FastAPI(
     title=settings.app_name,
+    description=API_DESCRIPTION,
+    version="0.3.0",
+    openapi_tags=OPENAPI_TAGS,
     lifespan=lifespan,
 )
 

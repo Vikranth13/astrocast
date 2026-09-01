@@ -1,0 +1,16 @@
+meta {
+  name: Alert detail
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/space-weather/alerts/1
+  body: none
+  auth: none
+}
+
+docs {
+  One alert with a deterministic explanation. The list
+  endpoint omits the explanation to stay lean.
+}

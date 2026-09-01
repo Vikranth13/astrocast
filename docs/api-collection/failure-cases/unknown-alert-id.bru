@@ -1,0 +1,16 @@
+meta {
+  name: 404 - unknown alert id
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/space-weather/alerts/999999
+  body: none
+  auth: none
+}
+
+docs {
+  Expect 404 with code not_found in the standard
+  envelope.
+}

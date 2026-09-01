@@ -1,0 +1,19 @@
+meta {
+  name: Forecast for a city
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/forecast?city=New Brunswick
+  body: none
+  auth: none
+}
+
+params:query {
+  city: New Brunswick
+}
+
+docs {
+  Local stargazing forecast and score. Calls Open-Meteo live.
+}

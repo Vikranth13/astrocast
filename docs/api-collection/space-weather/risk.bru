@@ -1,0 +1,17 @@
+meta {
+  name: Current risk
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/space-weather/risk
+  body: none
+  auth: none
+}
+
+docs {
+  Deterministic risk assessment. Raw measurements stay
+  separate from the interpretation, and each factor
+  carries the rule id that produced it.
+}
