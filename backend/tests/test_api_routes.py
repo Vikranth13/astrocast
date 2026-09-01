@@ -242,13 +242,20 @@ def test_ingestion_route_maps_external_error_to_502(
 
     assert response.status_code == 502
 
-    assert response.json() == {
-        "error": {
-            "code": "upstream_unavailable",
-            "message": "NOAA is unavailable.",
-            "details": None,
-        }
-    }
+    body = response.json()
+
+    assert (
+        body["error"]["code"]
+        == "upstream_unavailable"
+    )
+
+    # The raised exception text is logged, not
+    # returned. Upstream failures can carry connection
+    # internals and library object reprs.
+    assert (
+        "NOAA is unavailable."
+        not in body["error"]["message"]
+    )
 
 def test_alert_list_route(
     monkeypatch,

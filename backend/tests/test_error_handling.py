@@ -29,6 +29,7 @@ from clients.noaa_swpc_client import (
 from database import get_db
 from services.noaa_ingestion_service import (
     NoaaIngestionDatabaseError,
+    NoaaIngestionExternalError,
 )
 from api.routes import admin_ingestion
 
@@ -219,6 +220,50 @@ def test_noaa_client_error_becomes_502(
         response.json(),
         "upstream_unavailable",
     )
+
+
+def test_ingestion_upstream_error_hides_internals(
+    monkeypatch,
+) -> None:
+    """
+    A connection failure carries the internal host,
+    port, and a library object repr. None of that may
+    reach an unauthenticated endpoint.
+    """
+
+    def raise_external_error(db):
+        raise NoaaIngestionExternalError(
+            "NOAA ingestion failed: "
+            "HTTPConnectionPool(host='10.0.0.7', "
+            "port=9): Max retries exceeded "
+            "(Caused by NewConnectionError("
+            "'<urllib3.connection.HTTPConnection "
+            "object at 0x000001EEED8C7080>'))"
+        )
+
+    monkeypatch.setattr(
+        admin_ingestion,
+        "ingest_noaa_planetary_k_index",
+        raise_external_error,
+    )
+
+    response = client.post(
+        "/api/admin/ingestion/noaa"
+    )
+
+    assert response.status_code == 502
+
+    assert_error_envelope(
+        response.json(),
+        "upstream_unavailable",
+    )
+
+    serialized = response.text
+
+    assert "10.0.0.7" not in serialized
+    assert "urllib3" not in serialized
+    assert "0x0000" not in serialized
+    assert "HTTPConnectionPool" not in serialized
 
 
 def test_ingestion_database_error_becomes_500(

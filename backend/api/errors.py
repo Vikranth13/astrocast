@@ -63,6 +63,12 @@ UPSTREAM_ERROR_MESSAGE = (
     "available."
 )
 
+INGESTION_UPSTREAM_MESSAGE = (
+    "The ingestion run could not reach NOAA. The "
+    "attempt was recorded in the fetch log, and "
+    "previously stored data is still available."
+)
+
 
 def error_code_for_status(
     status_code: int,
@@ -177,6 +183,10 @@ def register_exception_handlers(
         failure by the time this runs.
         """
 
+        # The underlying exception carries connection
+        # internals and library object reprs. Those
+        # belong in the log, not in a response from an
+        # unauthenticated endpoint.
         logger.warning(
             "NOAA ingestion failed upstream: %s",
             exc,
@@ -185,7 +195,7 @@ def register_exception_handlers(
         return build_error_response(
             status_code=502,
             code="upstream_unavailable",
-            message=str(exc),
+            message=INGESTION_UPSTREAM_MESSAGE,
         )
 
     @app.exception_handler(
