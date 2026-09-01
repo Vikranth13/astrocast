@@ -190,6 +190,7 @@ def test_ingestion_route_returns_summary(
         status="success",
         fetch_log_id=10,
         fetched=62,
+        normalized=62,
         inserted=0,
         skipped=62,
         failed=0,
@@ -212,6 +213,7 @@ def test_ingestion_route_returns_summary(
         "status": "success",
         "fetch_log_id": 10,
         "fetched": 62,
+        "normalized": 62,
         "inserted": 0,
         "skipped": 62,
         "failed": 0,
@@ -460,8 +462,9 @@ def test_alert_ingestion_route_returns_summary(
         status="success",
         fetch_log_id=20,
         fetched=77,
+        normalized=76,
         inserted=0,
-        skipped=77,
+        skipped=76,
         failed=0,
     )
 
@@ -482,8 +485,9 @@ def test_alert_ingestion_route_returns_summary(
         "status": "success",
         "fetch_log_id": 20,
         "fetched": 77,
+        "normalized": 76,
         "inserted": 0,
-        "skipped": 77,
+        "skipped": 76,
         "failed": 0,
     }
 
@@ -666,6 +670,7 @@ def test_solar_wind_ingestion_route_returns_summary(
         status="success",
         fetch_log_id=16,
         fetched=3408,
+        normalized=4101,
         inserted=0,
         skipped=4101,
         failed=0,
@@ -688,6 +693,7 @@ def test_solar_wind_ingestion_route_returns_summary(
         "status": "success",
         "fetch_log_id": 16,
         "fetched": 3408,
+        "normalized": 4101,
         "inserted": 0,
         "skipped": 4101,
         "failed": 0,

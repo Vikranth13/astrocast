@@ -107,10 +107,15 @@ def mark_fetch_log_failed(
     error: Exception,
     fetched_count: int,
     http_status_code: int | None,
+    normalized_count: int = 0,
 ) -> None:
     """
     Roll back pending work and mark an existing
     fetch-log record as failed.
+
+    Callers pass normalized_count when normalization
+    had already finished, so a database failure still
+    records how many records the run had produced.
     """
 
     db.rollback()
@@ -132,6 +137,7 @@ def mark_fetch_log_failed(
             ),
             http_status_code=http_status_code,
             fetched_count=fetched_count,
+            normalized_count=normalized_count,
             error_message=str(error)[
                 :ERROR_MESSAGE_LIMIT
             ],
@@ -180,6 +186,7 @@ def ingest_noaa_planetary_k_index(
     fetch_log_id = fetch_log.id
 
     fetched_count = 0
+    normalized_count = 0
 
     http_status_code: int | None = None
 
@@ -205,6 +212,10 @@ def ingest_noaa_planetary_k_index(
             parse_noaa_planetary_k_index(
                 fetch_result.records
             )
+        )
+
+        normalized_count = len(
+            normalized_records
         )
 
         values_to_insert = [
@@ -242,7 +253,7 @@ def ingest_noaa_planetary_k_index(
         )
 
         skipped_count = (
-            len(normalized_records)
+            normalized_count
             - inserted_count
         )
 
@@ -254,6 +265,7 @@ def ingest_noaa_planetary_k_index(
             ),
             http_status_code=http_status_code,
             fetched_count=fetched_count,
+            normalized_count=normalized_count,
             inserted_count=inserted_count,
             skipped_count=skipped_count,
         )
@@ -265,6 +277,7 @@ def ingest_noaa_planetary_k_index(
             status="success",
             fetch_log_id=fetch_log_id,
             fetched=fetched_count,
+            normalized=normalized_count,
             inserted=inserted_count,
             skipped=skipped_count,
             failed=0,
@@ -282,6 +295,7 @@ def ingest_noaa_planetary_k_index(
             ),
             error=error,
             fetched_count=fetched_count,
+            normalized_count=normalized_count,
             http_status_code=(
                 http_status_code
                 or getattr(
@@ -305,6 +319,7 @@ def ingest_noaa_planetary_k_index(
             ),
             error=error,
             fetched_count=fetched_count,
+            normalized_count=normalized_count,
             http_status_code=(
                 http_status_code
             ),
@@ -326,6 +341,7 @@ def ingest_noaa_planetary_k_index(
             ),
             error=error,
             fetched_count=fetched_count,
+            normalized_count=normalized_count,
             http_status_code=(
                 http_status_code
             ),
@@ -374,6 +390,7 @@ def ingest_noaa_alerts(
     fetch_log_id = fetch_log.id
 
     fetched_count = 0
+    normalized_count = 0
     http_status_code: int | None = None
 
     try:
@@ -397,6 +414,10 @@ def ingest_noaa_alerts(
             parse_noaa_alerts(
                 fetch_result.records
             )
+        )
+
+        normalized_count = len(
+            normalized_records
         )
 
         values_to_insert = [
@@ -438,7 +459,7 @@ def ingest_noaa_alerts(
         )
 
         skipped_count = (
-            fetched_count
+            normalized_count
             - inserted_count
         )
 
@@ -450,6 +471,7 @@ def ingest_noaa_alerts(
             ),
             http_status_code=http_status_code,
             fetched_count=fetched_count,
+            normalized_count=normalized_count,
             inserted_count=inserted_count,
             skipped_count=skipped_count,
         )
@@ -461,6 +483,7 @@ def ingest_noaa_alerts(
             status="success",
             fetch_log_id=fetch_log_id,
             fetched=fetched_count,
+            normalized=normalized_count,
             inserted=inserted_count,
             skipped=skipped_count,
             failed=0,
@@ -478,6 +501,7 @@ def ingest_noaa_alerts(
             ),
             error=error,
             fetched_count=fetched_count,
+            normalized_count=normalized_count,
             http_status_code=(
                 http_status_code
                 or getattr(
@@ -504,6 +528,7 @@ def ingest_noaa_alerts(
             ),
             error=error,
             fetched_count=fetched_count,
+            normalized_count=normalized_count,
             http_status_code=(
                 http_status_code
             ),
@@ -525,6 +550,7 @@ def ingest_noaa_alerts(
             ),
             error=error,
             fetched_count=fetched_count,
+            normalized_count=normalized_count,
             http_status_code=(
                 http_status_code
             ),
@@ -573,6 +599,7 @@ def ingest_noaa_solar_wind(
 
     fetch_log_id = fetch_log.id
     fetched_count = 0
+    normalized_count = 0
     http_status_code: int | None = None
 
     try:
@@ -596,6 +623,10 @@ def ingest_noaa_solar_wind(
             parse_noaa_solar_wind(
                 fetch_result.records
             )
+        )
+
+        normalized_count = len(
+            normalized_records
         )
 
         values_to_insert = [
@@ -633,7 +664,7 @@ def ingest_noaa_solar_wind(
         )
 
         skipped_count = (
-            len(normalized_records)
+            normalized_count
             - inserted_count
         )
 
@@ -645,6 +676,7 @@ def ingest_noaa_solar_wind(
             ),
             http_status_code=http_status_code,
             fetched_count=fetched_count,
+            normalized_count=normalized_count,
             inserted_count=inserted_count,
             skipped_count=skipped_count,
         )
@@ -656,6 +688,7 @@ def ingest_noaa_solar_wind(
             status="success",
             fetch_log_id=fetch_log_id,
             fetched=fetched_count,
+            normalized=normalized_count,
             inserted=inserted_count,
             skipped=skipped_count,
             failed=0,
@@ -673,6 +706,7 @@ def ingest_noaa_solar_wind(
             ),
             error=error,
             fetched_count=fetched_count,
+            normalized_count=normalized_count,
             http_status_code=(
                 http_status_code
                 or getattr(
@@ -699,6 +733,7 @@ def ingest_noaa_solar_wind(
             ),
             error=error,
             fetched_count=fetched_count,
+            normalized_count=normalized_count,
             http_status_code=(
                 http_status_code
             ),
@@ -720,6 +755,7 @@ def ingest_noaa_solar_wind(
             ),
             error=error,
             fetched_count=fetched_count,
+            normalized_count=normalized_count,
             http_status_code=(
                 http_status_code
             ),

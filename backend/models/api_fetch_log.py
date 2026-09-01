@@ -86,6 +86,13 @@ class ApiFetchLog(TimestampMixin, Base):
         server_default=text("0"),
     )
 
+    normalized_count: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default=text("0"),
+    )
+
     inserted_count: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
