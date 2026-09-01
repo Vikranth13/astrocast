@@ -241,7 +241,11 @@ def test_ingestion_route_maps_external_error_to_502(
     assert response.status_code == 502
 
     assert response.json() == {
-        "detail": "NOAA is unavailable."
+        "error": {
+            "code": "upstream_unavailable",
+            "message": "NOAA is unavailable.",
+            "details": None,
+        }
     }
 
 def test_alert_list_route(

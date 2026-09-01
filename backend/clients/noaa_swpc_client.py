@@ -1,9 +1,20 @@
+import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
 import requests
 
 from config import settings
+
+
+# Transient conditions worth a second attempt. A 4xx
+# other than 429, malformed JSON, or a wrong payload
+# shape is deterministic: retrying only burns the
+# timeout budget and delays the error.
+RETRYABLE_STATUS_CODES = frozenset(
+    {429, 500, 502, 503, 504}
+)
 
 
 @dataclass(frozen=True)
@@ -45,6 +56,9 @@ class NoaaSwpcClient:
         session: requests.Session | None = None,
         alerts_url: str | None = None,
         solar_wind_url: str | None = None,
+        max_retries: int | None = None,
+        retry_backoff_seconds: float | None = None,
+        sleep: Callable[[float], None] | None = None,
     ):
         self.planetary_k_index_url = (
             planetary_k_index_url
@@ -68,34 +82,113 @@ class NoaaSwpcClient:
 
         self.session = session or requests.Session()
 
+        self.max_retries = (
+            max_retries
+            if max_retries is not None
+            else settings.noaa_max_retries
+        )
+
+        self.retry_backoff_seconds = (
+            retry_backoff_seconds
+            if retry_backoff_seconds is not None
+            else settings.noaa_retry_backoff_seconds
+        )
+
+        # Injected so tests do not wait in real time.
+        self.sleep = sleep or time.sleep
+
+    def _is_retryable(
+        self,
+        error: Exception,
+        status_code: int | None,
+    ) -> bool:
+        """
+        Decide whether a failed request is worth
+        another attempt.
+        """
+
+        if isinstance(
+            error,
+            (
+                requests.exceptions.ConnectionError,
+                requests.exceptions.Timeout,
+            ),
+        ):
+            return True
+
+        return (
+            status_code
+            in RETRYABLE_STATUS_CODES
+        )
+
+    def _request_with_retries(
+        self,
+        url: str,
+        product_name: str,
+    ):
+        """
+        Perform the HTTP request, retrying transient
+        failures with exponential backoff.
+
+        Raises NoaaSwpcClientError once the failure is
+        not retryable or the attempts are exhausted,
+        reporting the status code of the final
+        attempt.
+        """
+
+        attempt = 0
+
+        while True:
+            try:
+                response = self.session.get(
+                    url,
+                    timeout=self.timeout_seconds,
+                )
+
+                response.raise_for_status()
+
+                return response
+
+            except requests.exceptions.RequestException as error:
+                status_code = None
+
+                if error.response is not None:
+                    status_code = (
+                        error.response.status_code
+                    )
+
+                exhausted = (
+                    attempt >= self.max_retries
+                )
+
+                if exhausted or not self._is_retryable(
+                    error,
+                    status_code,
+                ):
+                    raise NoaaSwpcClientError(
+                        message=(
+                            f"NOAA {product_name} "
+                            f"request failed: {error}"
+                        ),
+                        http_status_code=status_code,
+                    ) from error
+
+                attempt += 1
+
+                self.sleep(
+                    self.retry_backoff_seconds
+                    * (2 ** (attempt - 1))
+                )
+
     def _fetch_json_array(
         self,
         url: str,
         product_name: str,
     ) -> NoaaFetchResult:
-        try:
-            response = self.session.get(
-                url,
-                timeout=self.timeout_seconds,
-            )
-
-            response.raise_for_status()
-
-        except requests.exceptions.RequestException as error:
-            status_code = None
-
-            if error.response is not None:
-                status_code = (
-                    error.response.status_code
-                )
-
-            raise NoaaSwpcClientError(
-                message=(
-                    f"NOAA {product_name} request "
-                    f"failed: {error}"
-                ),
-                http_status_code=status_code,
-            ) from error
+        response = self._request_with_retries(
+            url=url,
+            product_name=product_name,
+        )
 
         try:
             payload = response.json()

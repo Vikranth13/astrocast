@@ -44,6 +44,14 @@ class Settings(BaseSettings):
 
     noaa_request_timeout_seconds: int = 15
 
+    # Retries apply only to transient NOAA failures:
+    # connection errors, timeouts, and 429/5xx
+    # responses. A malformed payload is deterministic
+    # and is never retried.
+    noaa_max_retries: int = 2
+
+    noaa_retry_backoff_seconds: float = 0.5
+
     model_config = SettingsConfigDict(
         env_file=PROJECT_ROOT / ".env",
         env_file_encoding="utf-8",

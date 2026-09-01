@@ -79,15 +79,62 @@ class FakeSession:
         return self.response
 
 
-class FailingSession:
+class SequenceSession:
+    """
+    Returns a different response per attempt, so retry
+    behaviour can be observed.
+    """
+
+    def __init__(
+        self,
+        responses: list[FakeResponse],
+    ):
+        self.responses = responses
+        self.call_count = 0
+
     def get(
         self,
         url: str,
         timeout: int,
     ) -> FakeResponse:
+        response = self.responses[
+            self.call_count
+        ]
+
+        self.call_count += 1
+
+        return response
+
+
+class FailingSession:
+    def __init__(self):
+        self.call_count = 0
+
+    def get(
+        self,
+        url: str,
+        timeout: int,
+    ) -> FakeResponse:
+        self.call_count += 1
+
         raise requests.ConnectionError(
             "Network unavailable"
         )
+
+
+class RecordingSleep:
+    """
+    Stands in for time.sleep so tests never wait.
+    """
+
+    def __init__(self):
+        self.delays: list[float] = []
+
+    def __call__(
+        self,
+        seconds: float,
+    ) -> None:
+        self.delays.append(seconds)
 
 
 def test_client_returns_valid_records() -> None:
@@ -122,17 +169,27 @@ def test_client_returns_valid_records() -> None:
 
 
 def test_client_rejects_http_failure() -> None:
+    session = SequenceSession(
+        [
+            FakeResponse(
+                payload=None,
+                status_code=503,
+            )
+        ]
+        * 3
+    )
+
+    sleep = RecordingSleep()
+
     client = NoaaSwpcClient(
         planetary_k_index_url=(
             "https://example.test/noaa"
         ),
         timeout_seconds=5,
-        session=FakeSession(
-            FakeResponse(
-                payload=None,
-                status_code=503,
-            )
-        ),
+        session=session,
+        max_retries=2,
+        retry_backoff_seconds=0.5,
+        sleep=sleep,
     )
 
     with pytest.raises(
@@ -144,6 +201,9 @@ def test_client_rejects_http_failure() -> None:
         captured_error.value.http_status_code
         == 503
     )
+
+    # One initial attempt plus two retries.
+    assert session.call_count == 3
 
 
 def test_client_rejects_invalid_json() -> None:
@@ -192,12 +252,16 @@ def test_client_rejects_non_array_payload() -> None:
 
 
 def test_client_converts_network_error() -> None:
+    session = FailingSession()
+
     client = NoaaSwpcClient(
         planetary_k_index_url=(
             "https://example.test/noaa"
         ),
         timeout_seconds=5,
-        session=FailingSession(),
+        session=session,
+        max_retries=2,
+        sleep=RecordingSleep(),
     )
 
     with pytest.raises(
@@ -205,6 +269,8 @@ def test_client_converts_network_error() -> None:
         match="request failed",
     ):
         client.fetch_planetary_k_index()
+
+    assert session.call_count == 3
 
 def test_client_returns_solar_wind_records(
 ) -> None:
@@ -239,3 +305,193 @@ def test_client_returns_solar_wind_records(
         fake_session.requested_timeout
         == 5
     )
+
+# -------------------------------------------------
+# Retry behaviour
+#
+# Retries exist for transient upstream failures only.
+# A deterministic failure must not be retried, or the
+# client just burns the timeout budget before
+# reporting the same error.
+# -------------------------------------------------
+
+def test_client_retries_transient_failure_then_succeeds(
+) -> None:
+    session = SequenceSession(
+        [
+            FakeResponse(
+                payload=None,
+                status_code=503,
+            ),
+            FakeResponse(
+                payload=None,
+                status_code=503,
+            ),
+            FakeResponse([SAMPLE_RECORD]),
+        ]
+    )
+
+    client = NoaaSwpcClient(
+        planetary_k_index_url=(
+            "https://example.test/noaa"
+        ),
+        timeout_seconds=5,
+        session=session,
+        max_retries=2,
+        sleep=RecordingSleep(),
+    )
+
+    result = (
+        client.fetch_planetary_k_index()
+    )
+
+    assert result.records == [SAMPLE_RECORD]
+    assert session.call_count == 3
+
+
+def test_client_does_not_retry_client_error(
+) -> None:
+    session = SequenceSession(
+        [
+            FakeResponse(
+                payload=None,
+                status_code=404,
+            )
+        ]
+    )
+
+    client = NoaaSwpcClient(
+        planetary_k_index_url=(
+            "https://example.test/noaa"
+        ),
+        timeout_seconds=5,
+        session=session,
+        max_retries=2,
+        sleep=RecordingSleep(),
+    )
+
+    with pytest.raises(
+        NoaaSwpcClientError
+    ) as captured_error:
+        client.fetch_planetary_k_index()
+
+    assert (
+        captured_error.value.http_status_code
+        == 404
+    )
+
+    assert session.call_count == 1
+
+
+def test_client_retries_rate_limiting(
+) -> None:
+    session = SequenceSession(
+        [
+            FakeResponse(
+                payload=None,
+                status_code=429,
+            ),
+            FakeResponse([SAMPLE_RECORD]),
+        ]
+    )
+
+    client = NoaaSwpcClient(
+        planetary_k_index_url=(
+            "https://example.test/noaa"
+        ),
+        timeout_seconds=5,
+        session=session,
+        max_retries=2,
+        sleep=RecordingSleep(),
+    )
+
+    result = (
+        client.fetch_planetary_k_index()
+    )
+
+    assert result.records == [SAMPLE_RECORD]
+    assert session.call_count == 2
+
+
+def test_client_does_not_retry_malformed_payload(
+) -> None:
+    """
+    A body that is not JSON will not become JSON on a
+    second attempt.
+    """
+
+    session = SequenceSession(
+        [
+            FakeResponse(
+                payload=None,
+                json_error=ValueError(
+                    "Invalid JSON"
+                ),
+            )
+        ]
+    )
+
+    client = NoaaSwpcClient(
+        planetary_k_index_url=(
+            "https://example.test/noaa"
+        ),
+        timeout_seconds=5,
+        session=session,
+        max_retries=2,
+        sleep=RecordingSleep(),
+    )
+
+    with pytest.raises(
+        NoaaSwpcClientError,
+        match="not valid JSON",
+    ):
+        client.fetch_planetary_k_index()
+
+    assert session.call_count == 1
+
+
+def test_client_backs_off_exponentially(
+) -> None:
+    session = FailingSession()
+
+    sleep = RecordingSleep()
+
+    client = NoaaSwpcClient(
+        planetary_k_index_url=(
+            "https://example.test/noaa"
+        ),
+        timeout_seconds=5,
+        session=session,
+        max_retries=3,
+        retry_backoff_seconds=0.5,
+        sleep=sleep,
+    )
+
+    with pytest.raises(
+        NoaaSwpcClientError
+    ):
+        client.fetch_planetary_k_index()
+
+    assert sleep.delays == [0.5, 1.0, 2.0]
+
+
+def test_retries_can_be_disabled(
+) -> None:
+    session = FailingSession()
+
+    client = NoaaSwpcClient(
+        planetary_k_index_url=(
+            "https://example.test/noaa"
+        ),
+        timeout_seconds=5,
+        session=session,
+        max_retries=0,
+        sleep=RecordingSleep(),
+    )
+
+    with pytest.raises(
+        NoaaSwpcClientError
+    ):
+        client.fetch_planetary_k_index()
+
+    assert session.call_count == 1

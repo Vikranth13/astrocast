@@ -3,6 +3,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from api.errors import (
+    register_exception_handlers,
+)
 from api.routes.admin_ingestion import (
     router as admin_ingestion_router,
 )
@@ -42,6 +45,8 @@ app = FastAPI(
     title=settings.app_name,
     lifespan=lifespan,
 )
+
+register_exception_handlers(app)
 
 app.add_middleware(
     CORSMiddleware,
