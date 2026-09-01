@@ -1,0 +1,15 @@
+meta {
+  name: Geocode a city
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/geocode?city=New Brunswick
+  body: none
+  auth: none
+}
+
+params:query {
+  city: New Brunswick
+}

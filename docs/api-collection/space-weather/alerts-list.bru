@@ -1,0 +1,15 @@
+meta {
+  name: Alerts - all
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/space-weather/alerts?limit=10
+  body: none
+  auth: none
+}
+
+params:query {
+  limit: 10
+}

@@ -1,0 +1,15 @@
+meta {
+  name: 422 - limit out of range
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/space-weather/trends/kp?limit=0
+  body: none
+  auth: none
+}
+
+params:query {
+  limit: 0
+}

@@ -286,6 +286,14 @@ astrocast/
 |   |-- alembic/
 |   |   |-- versions/
 |   |   `-- env.py
+|   |-- api/
+|   |   |-- errors.py
+|   |   `-- routes/
+|   |       |-- admin_ingestion.py
+|   |       |-- astronomy.py
+|   |       |-- observe.py
+|   |       |-- space_weather.py
+|   |       `-- system.py
 |   |-- clients/
 |   |   `-- noaa_swpc_client.py
 |   |-- models/
@@ -301,8 +309,13 @@ astrocast/
 |   |   |-- noaa_kp.py
 |   |   |-- normalized_measurement.py
 |   |   `-- space_weather.py
+|   |-- repositories/
+|   |   |-- fetch_log_repository.py
+|   |   |-- space_weather_alert_repository.py
+|   |   `-- space_weather_repository.py
 |   |-- services/
 |   |   |-- astronomy_service.py
+|   |   |-- explanation_service.py
 |   |   |-- noaa_ingestion_service.py
 |   |   |-- scoring_service.py
 |   |   |-- space_weather_risk_service.py
@@ -310,8 +323,13 @@ astrocast/
 |   |   `-- weather_service.py
 |   |-- tests/
 |   |   |-- test_api_routes.py
+|   |   |-- test_error_handling.py
+|   |   |-- test_explanation_service.py
+|   |   |-- test_noaa_alert_parser.py
 |   |   |-- test_noaa_client.py
+|   |   |-- test_noaa_ingestion_counters.py
 |   |   |-- test_noaa_kp_parser.py
+|   |   |-- test_noaa_solar_wind_parser.py
 |   |   |-- test_space_weather_risk_service.py
 |   |   `-- test_space_weather_service.py
 |   |-- alembic.ini
@@ -322,6 +340,7 @@ astrocast/
 |   |-- requirements.txt
 |   `-- requirements-dev.txt
 |-- docs/
+|   |-- api-collection/
 |   |-- API_PLAN.md
 |   |-- ARCHITECTURE.md
 |   |-- api.md
@@ -533,22 +552,30 @@ Example successful response:
 {
   "source": "NOAA_SWPC",
   "status": "success",
-  "fetch_log_id": 2,
-  "fetched": 62,
+  "fetch_log_id": 34,
+  "fetched": 75,
+  "normalized": 73,
   "inserted": 0,
-  "skipped": 62,
+  "skipped": 73,
   "failed": 0
 }
 ```
 
-A first ingestion into an empty database normally inserts all fetched records.
+### Reading the counters
 
-A repeated ingestion normally skips existing records:
+`fetched` counts raw records NOAA returned. `normalized` counts the logical records produced after validation, filtering, and supersede resolution. Insert and skip counts apply to normalized records, so the invariant is:
 
 ```text
-fetched = inserted + skipped
-failed = 0
+normalized = inserted + skipped
 ```
+
+`fetched` is deliberately outside that equation, because normalization is not one to one. The difference between the two is signed and describes what normalization did:
+
+- **Alerts collapse.** NOAA reissues a corrected notification under the same serial number, and only the newest version survives parsing. A run fetching 75 rows may normalize to 73. Those two were superseded, not rejected as duplicates.
+- **Solar wind expands.** One reading yields separate speed, density, and temperature measurements, so a first run legitimately stores more rows than it fetched.
+- **Kp is one to one.**
+
+A repeated ingestion inserts 0 and skips everything, with `normalized` unchanged.
 
 The administration endpoint is intended for local development and is not currently authenticated. Do not expose it publicly in its present form.
 
@@ -561,8 +588,33 @@ The administration endpoint is intended for local development and is not current
 | GET | `/geocode?city=...` | Converts a city name into location data |
 | GET | `/forecast?city=...` | Returns a local stargazing forecast |
 | GET | `/apod` | Returns NASA Astronomy Picture of the Day data |
-| POST | `/api/admin/ingestion/noaa` | Runs NOAA Planetary K-index ingestion |
 | GET | `/api/space-weather/current` | Returns the newest stored space-weather measurement |
+| GET | `/api/space-weather/risk` | Returns the deterministic risk assessment |
+| GET | `/api/space-weather/alerts` | Returns a filterable alert list |
+| GET | `/api/space-weather/alerts/{id}` | Returns one alert with an explanation |
+| GET | `/api/space-weather/trends/kp` | Returns the Kp time series |
+| GET | `/api/space-weather/trends/solar-wind` | Returns the solar-wind time series |
+| POST | `/api/admin/ingestion/noaa` | Runs NOAA Planetary K-index ingestion |
+| POST | `/api/admin/ingestion/noaa/alerts` | Runs NOAA alert ingestion |
+| POST | `/api/admin/ingestion/noaa/solar-wind` | Runs NOAA solar-wind ingestion |
+
+Space-weather reads are served from PostgreSQL and never call NOAA, so they remain available during an upstream outage. Full reference in `docs/api.md`, with a Bruno request collection in `docs/api-collection/`.
+
+### Error Format
+
+Every non-success response uses one envelope:
+
+```json
+{
+  "error": {
+    "code": "not_found",
+    "message": "Space-weather alert was not found.",
+    "details": null
+  }
+}
+```
+
+Clients should branch on `code`, not on the message. Validation errors put per-field information in `details`. Internal failures are logged server-side with their traceback and reported generically, so exception text and connection details never reach a response.
 
 ## Example Current Space-Weather Response
 
@@ -754,6 +806,13 @@ Completed functionality includes:
 - Geomagnetic risk classification
 - Freshness calculation
 - React Space Weather card
+- NOAA alert ingestion with supersede resolution
+- Solar-wind ingestion
+- Historical Kp and solar-wind trend endpoints
+- Filterable alert list and detail endpoints
+- Deterministic explanation engine with mandatory caveats
+- Standardized API error envelope with global exception handlers
+- Bounded retries with exponential backoff for transient NOAA failures
 - Backend automated tests
 - Frontend component and workflow tests
 
@@ -762,15 +821,16 @@ Completed functionality includes:
 - City searches currently select the first matching geocoding result.
 - Cities with the same name are not yet disambiguated.
 - The local forecast evaluates a fixed evening observation time.
-- NOAA ingestion is triggered manually.
-- The ingestion administration endpoint is unauthenticated.
-- Only the NOAA Planetary K-index product is currently integrated.
-- Corrected NOAA records are skipped rather than updated.
-- Space-weather output describes global geomagnetic activity, not a location-specific aurora forecast.
+- NOAA ingestion is triggered manually rather than on a schedule.
+- The ingestion administration endpoints are unauthenticated and must not be exposed publicly.
+- Corrected NOAA measurements are skipped rather than updated. Corrected *alerts* are handled: a reissued notification supersedes the earlier version during parsing.
+- Space-weather output describes global geomagnetic activity, not a location-specific aurora forecast. Every explanation states this rather than implying otherwise.
 - The `locations` table exists but city searches are not yet persisted.
 - NASA APOD may fail when using the shared `DEMO_KEY`.
 - The frontend API base URL is currently configured for local development.
-- Historical space-weather charts are not yet implemented.
+- The frontend consumes only `/api/space-weather/current`; trends, alerts, and risk are available but not yet displayed.
+- `backend/requirements.txt` is a full environment freeze rather than a runtime dependency list. Scheduled for Week 8.
+- Historical alert rows backfilled by migration `0dc8d08221c3` inherit the earlier counter overstatement and can read slightly high.
 - Deployment and continuous integration are not yet configured.
 
 ## Roadmap

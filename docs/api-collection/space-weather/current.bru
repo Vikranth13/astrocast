@@ -1,0 +1,20 @@
+meta {
+  name: Current space weather
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/space-weather/current
+  body: none
+  auth: none
+}
+
+docs {
+  Newest stored Kp observation with its geomagnetic
+  classification, freshness, and explanation.
+
+  Served from stored data, so it stays available while
+  NOAA is unreachable. Returns 404 before the first
+  ingestion run.
+}

@@ -1,0 +1,17 @@
+meta {
+  name: Ingest solar wind
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/admin/ingestion/noaa/solar-wind
+  body: none
+  auth: none
+}
+
+docs {
+  normalized exceeds fetched here. One reading yields
+  separate speed, density, and temperature
+  measurements.
+}

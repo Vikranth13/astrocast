@@ -33,7 +33,24 @@ class Settings(BaseSettings):
         "noaa-planetary-k-index.json"
     )
 
+    noaa_alerts_url: str = (
+        "https://services.swpc.noaa.gov/products/alerts.json"
+    )
+
+    noaa_solar_wind_url: str = (
+    "https://services.swpc.noaa.gov/json/rtsw/"
+    "rtsw_wind_1m.json"
+    )
+
     noaa_request_timeout_seconds: int = 15
+
+    # Retries apply only to transient NOAA failures:
+    # connection errors, timeouts, and 429/5xx
+    # responses. A malformed payload is deterministic
+    # and is never retried.
+    noaa_max_retries: int = 2
+
+    noaa_retry_backoff_seconds: float = 0.5
 
     model_config = SettingsConfigDict(
         env_file=PROJECT_ROOT / ".env",

@@ -1,0 +1,17 @@
+meta {
+  name: Ingest planetary K-index
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/admin/ingestion/noaa
+  body: none
+  auth: none
+}
+
+docs {
+  Run twice. The second run should insert 0 and skip
+  everything, and both runs must satisfy
+  normalized == inserted + skipped.
+}

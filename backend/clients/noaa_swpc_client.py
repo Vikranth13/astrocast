@@ -1,9 +1,20 @@
+import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
 import requests
 
 from config import settings
+
+
+# Transient conditions worth a second attempt. A 4xx
+# other than 429, malformed JSON, or a wrong payload
+# shape is deterministic: retrying only burns the
+# timeout budget and delays the error.
+RETRYABLE_STATUS_CODES = frozenset(
+    {429, 500, 502, 503, 504}
+)
 
 
 @dataclass(frozen=True)
@@ -43,10 +54,20 @@ class NoaaSwpcClient:
         planetary_k_index_url: str | None = None,
         timeout_seconds: int | None = None,
         session: requests.Session | None = None,
+        alerts_url: str | None = None,
+        solar_wind_url: str | None = None,
+        max_retries: int | None = None,
+        retry_backoff_seconds: float | None = None,
+        sleep: Callable[[float], None] | None = None,
     ):
         self.planetary_k_index_url = (
             planetary_k_index_url
             or settings.noaa_planetary_k_index_url
+        )
+
+        self.alerts_url = (
+            alerts_url
+            or settings.noaa_alerts_url
         )
 
         self.timeout_seconds = (
@@ -54,38 +75,120 @@ class NoaaSwpcClient:
             or settings.noaa_request_timeout_seconds
         )
 
+        self.solar_wind_url = (
+            solar_wind_url
+            or settings.noaa_solar_wind_url
+        )
+
         self.session = session or requests.Session()
 
-    def fetch_planetary_k_index(
+        self.max_retries = (
+            max_retries
+            if max_retries is not None
+            else settings.noaa_max_retries
+        )
+
+        self.retry_backoff_seconds = (
+            retry_backoff_seconds
+            if retry_backoff_seconds is not None
+            else settings.noaa_retry_backoff_seconds
+        )
+
+        # Injected so tests do not wait in real time.
+        self.sleep = sleep or time.sleep
+
+    def _is_retryable(
         self,
-    ) -> NoaaFetchResult:
+        error: Exception,
+        status_code: int | None,
+    ) -> bool:
         """
-        Fetch observed NOAA planetary K-index data.
+        Decide whether a failed request is worth
+        another attempt.
         """
 
-        try:
-            response = self.session.get(
-                self.planetary_k_index_url,
-                timeout=self.timeout_seconds,
-            )
+        if isinstance(
+            error,
+            (
+                requests.exceptions.ConnectionError,
+                requests.exceptions.Timeout,
+            ),
+        ):
+            return True
 
-            response.raise_for_status()
+        return (
+            status_code
+            in RETRYABLE_STATUS_CODES
+        )
 
-        except requests.exceptions.RequestException as error:
-            status_code = None
+    def _request_with_retries(
+        self,
+        url: str,
+        product_name: str,
+    ):
+        """
+        Perform the HTTP request, retrying transient
+        failures with exponential backoff.
 
-            if error.response is not None:
-                status_code = (
-                    error.response.status_code
+        Raises NoaaSwpcClientError once the failure is
+        not retryable or the attempts are exhausted,
+        reporting the status code of the final
+        attempt.
+        """
+
+        attempt = 0
+
+        while True:
+            try:
+                response = self.session.get(
+                    url,
+                    timeout=self.timeout_seconds,
                 )
 
-            raise NoaaSwpcClientError(
-                message=(
-                    "NOAA planetary K-index request "
-                    f"failed: {error}"
-                ),
-                http_status_code=status_code,
-            ) from error
+                response.raise_for_status()
+
+                return response
+
+            except requests.exceptions.RequestException as error:
+                status_code = None
+
+                if error.response is not None:
+                    status_code = (
+                        error.response.status_code
+                    )
+
+                exhausted = (
+                    attempt >= self.max_retries
+                )
+
+                if exhausted or not self._is_retryable(
+                    error,
+                    status_code,
+                ):
+                    raise NoaaSwpcClientError(
+                        message=(
+                            f"NOAA {product_name} "
+                            f"request failed: {error}"
+                        ),
+                        http_status_code=status_code,
+                    ) from error
+
+                attempt += 1
+
+                self.sleep(
+                    self.retry_backoff_seconds
+                    * (2 ** (attempt - 1))
+                )
+
+    def _fetch_json_array(
+        self,
+        url: str,
+        product_name: str,
+    ) -> NoaaFetchResult:
+        response = self._request_with_retries(
+            url=url,
+            product_name=product_name,
+        )
 
         try:
             payload = response.json()
@@ -93,7 +196,7 @@ class NoaaSwpcClient:
         except ValueError as error:
             raise NoaaSwpcClientError(
                 message=(
-                    "NOAA planetary K-index response "
+                    f"NOAA {product_name} response "
                     "was not valid JSON."
                 ),
                 http_status_code=response.status_code,
@@ -102,7 +205,7 @@ class NoaaSwpcClient:
         if not isinstance(payload, list):
             raise NoaaSwpcClientError(
                 message=(
-                    "NOAA planetary K-index response "
+                    f"NOAA {product_name} response "
                     "must be a JSON array."
                 ),
                 http_status_code=response.status_code,
@@ -114,7 +217,7 @@ class NoaaSwpcClient:
             if not isinstance(item, dict):
                 raise NoaaSwpcClientError(
                     message=(
-                        "NOAA planetary K-index "
+                        f"NOAA {product_name} "
                         f"record {index} was not "
                         "a JSON object."
                     ),
@@ -128,4 +231,40 @@ class NoaaSwpcClient:
         return NoaaFetchResult(
             records=records,
             http_status_code=response.status_code,
+        )
+
+    def fetch_planetary_k_index(
+        self,
+    ) -> NoaaFetchResult:
+        """
+        Fetch observed NOAA planetary K-index data.
+        """
+
+        return self._fetch_json_array(
+            url=self.planetary_k_index_url,
+            product_name="planetary K-index",
+        )
+
+    def fetch_alerts(
+        self,
+    ) -> NoaaFetchResult:
+        """
+        Fetch NOAA SWPC alert notifications.
+        """
+
+        return self._fetch_json_array(
+            url=self.alerts_url,
+            product_name="alerts",
+        )
+
+    def fetch_solar_wind(
+        self,
+    ) -> NoaaFetchResult:
+        """
+        Fetch NOAA real-time solar-wind plasma data.
+        """
+
+        return self._fetch_json_array(
+            url=self.solar_wind_url,
+            product_name="solar wind",
         )

@@ -2,19 +2,49 @@ from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import HTTPException
-from sqlalchemy import select
+# from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from models.space_weather_measurement import (
-    SpaceWeatherMeasurement,
+# from models.space_weather_measurement import (
+#     SpaceWeatherMeasurement,
+# )
+
+from repositories.space_weather_repository import (
+    get_latest_measurement,
+    list_measurements,
 )
+
 from schemas.space_weather import (
     CurrentSpaceWeatherResponse,
     PlanetaryKpFacts,
     SpaceWeatherFreshness,
+    SpaceWeatherAlertDetailResponse,
+    SpaceWeatherAlertListResponse,
+    SpaceWeatherAlertResponse,
+    SpaceWeatherTrendPoint,
+    SpaceWeatherTrendResponse,
+    SolarWindTrendPoint,
+    SolarWindTrendResponse,
+    CurrentSpaceWeatherRiskResponse,
+    SpaceWeatherRiskRawValues,
 )
 from services.space_weather_risk_service import (
+    assess_space_weather_risk,
     classify_planetary_k_index,
+)
+# format_age is re-exported from this module because
+# it lived here before the explanation engine existed.
+from services.explanation_service import (  # noqa: F401
+    build_alert_explanation,
+    build_current_explanation,
+    build_risk_explanation,
+    describe_freshness,
+    format_age,
+)
+
+from repositories.space_weather_alert_repository import (
+    get_alert_by_id,
+    list_alerts,
 )
 
 
@@ -23,6 +53,18 @@ METRIC_NAME = "planetary_k_index"
 
 CURRENT_MAX_AGE_MINUTES = 240
 DELAYED_MAX_AGE_MINUTES = 720
+
+SOLAR_WIND_SPEED_METRIC = (
+    "solar_wind_speed"
+)
+
+SOLAR_WIND_DENSITY_METRIC = (
+    "solar_wind_density"
+)
+
+SOLAR_WIND_TEMPERATURE_METRIC = (
+    "solar_wind_temperature"
+)
 
 
 def ensure_utc(
@@ -105,26 +147,7 @@ def optional_integer(
         return None
 
 
-def format_age(
-    age_minutes: int,
-) -> str:
-    """
-    Convert a minute count into readable text.
-    """
-
-    if age_minutes < 60:
-        return f"{age_minutes} minutes"
-
-    hours = age_minutes // 60
-    remaining_minutes = age_minutes % 60
-
-    if remaining_minutes == 0:
-        return f"{hours} hours"
-
-    return (
-        f"{hours} hours and "
-        f"{remaining_minutes} minutes"
-    )
+# format_age is imported above and re-exported.
 
 
 def get_current_space_weather(
@@ -135,27 +158,10 @@ def get_current_space_weather(
     K-index measurement.
     """
 
-    statement = (
-        select(
-            SpaceWeatherMeasurement
-        )
-        .where(
-            SpaceWeatherMeasurement.source
-            == SOURCE_NAME,
-            SpaceWeatherMeasurement.metric_name
-            == METRIC_NAME,
-        )
-        .order_by(
-            SpaceWeatherMeasurement
-            .observed_at
-            .desc()
-        )
-        .limit(1)
-    )
-
-    measurement = (
-        db.scalars(statement)
-        .first()
+    measurement = get_latest_measurement(
+    db=db,
+    source=SOURCE_NAME,
+    metric_name=METRIC_NAME,
     )
 
     if measurement is None:
@@ -207,31 +213,21 @@ def get_current_space_weather(
         ),
     )
 
-    if geomagnetic_activity.noaa_scale is None:
-        activity_sentence = (
-            "This is below NOAA geomagnetic "
-            "storm level."
+    explanation_detail = (
+        build_current_explanation(
+            kp=kp,
+            activity=geomagnetic_activity,
+            freshness=freshness,
         )
-
-    else:
-        activity_sentence = (
-            "This meets NOAA "
-            f"{geomagnetic_activity.noaa_scale} "
-            f"({geomagnetic_activity.label}) level."
-        )
-
-    readable_age = format_age(
-        freshness.age_minutes
     )
 
+    # The flat string is kept for the existing
+    # frontend card, which renders one paragraph.
+    # The structured explanation carries the full
+    # interpretation.
     explanation = (
-        "The latest observed planetary "
-        f"K-index is {kp:.2f}. "
-        f"{activity_sentence} "
-        "The observation is approximately "
-        f"{readable_age} old and AstroCast "
-        f"classifies the source data as "
-        f"{freshness.status}."
+        f"{explanation_detail.summary} "
+        f"{describe_freshness(freshness)}"
     )
 
     return CurrentSpaceWeatherResponse(
@@ -248,5 +244,508 @@ def get_current_space_weather(
             geomagnetic_activity
         ),
         facts=facts,
+        explanation=explanation,
+        explanation_detail=(
+            explanation_detail
+        ),
+    )
+
+def calculate_alert_status(
+    expires_at: datetime | None,
+    now: datetime | None = None,
+) -> str:
+    if expires_at is None:
+        return "unknown"
+
+    current_time = ensure_utc(
+        now or datetime.now(timezone.utc)
+    )
+
+    normalized_expiration = ensure_utc(
+        expires_at
+    )
+
+    if normalized_expiration > current_time:
+        return "active"
+
+    return "expired"
+
+
+def build_alert_response(
+    alert,
+    now: datetime | None = None,
+) -> SpaceWeatherAlertResponse:
+    return SpaceWeatherAlertResponse(
+        id=alert.id,
+        source=alert.source,
+        external_id=alert.external_id,
+        alert_type=alert.alert_type,
+        severity=alert.severity,
+        issued_at=ensure_utc(
+            alert.issued_at
+        ),
+        expires_at=(
+            ensure_utc(alert.expires_at)
+            if alert.expires_at is not None
+            else None
+        ),
+        status=calculate_alert_status(
+            alert.expires_at,
+            now=now,
+        ),
+        summary=alert.summary,
+        ingested_at=ensure_utc(
+            alert.created_at
+        ),
+    )
+
+
+def get_space_weather_alerts(
+    db: Session,
+    severity: str | None = None,
+    alert_type: str | None = None,
+    source: str | None = None,
+    issued_start: datetime | None = None,
+    issued_end: datetime | None = None,
+    status: str | None = None,
+    limit: int = 100,
+) -> SpaceWeatherAlertListResponse:
+
+    if (
+        issued_start is not None
+        and issued_end is not None
+        and issued_start > issued_end
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "issued_start must be earlier "
+                "than or equal to issued_end."
+            ),
+        )
+    
+    current_time = datetime.now(
+        timezone.utc
+    )
+
+    alerts = list_alerts(
+        db=db,
+        severity=severity,
+        alert_type=alert_type,
+        source=source,
+        issued_start=issued_start,
+        issued_end=issued_end,
+        status=status,
+        now=current_time,
+        limit=limit,
+    )
+
+    responses = [
+        build_alert_response(
+            alert,
+            now=current_time,
+        )
+        for alert in alerts
+    ]
+
+    return SpaceWeatherAlertListResponse(
+        count=len(responses),
+        alerts=responses,
+    )
+
+
+def get_space_weather_alert(
+    db: Session,
+    alert_id: int,
+) -> SpaceWeatherAlertDetailResponse:
+    """
+    Return one stored alert with its deterministic
+    explanation.
+    """
+
+    alert = get_alert_by_id(
+        db,
+        alert_id,
+    )
+
+    if alert is None:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "Space-weather alert was "
+                "not found."
+            ),
+        )
+
+    base = build_alert_response(
+        alert
+    )
+
+    explanation = build_alert_explanation(
+        alert_type=base.alert_type,
+        severity=base.severity,
+        status=base.status,
+        issued_at=base.issued_at,
+        expires_at=base.expires_at,
+    )
+
+    return SpaceWeatherAlertDetailResponse(
+        **base.model_dump(),
+        explanation=explanation,
+    )
+
+def get_kp_trend(
+    db: Session,
+    start: datetime | None = None,
+    end: datetime | None = None,
+    limit: int = 500,
+) -> SpaceWeatherTrendResponse:
+    if (
+        start is not None
+        and end is not None
+        and start > end
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "start must be earlier than "
+                "or equal to end."
+            ),
+        )
+
+    measurements = list_measurements(
+        db=db,
+        source=SOURCE_NAME,
+        metric_name=METRIC_NAME,
+        start=start,
+        end=end,
+        limit=limit,
+    )
+
+    points = []
+
+    for measurement in measurements:
+        if measurement.numeric_value is None:
+            continue
+
+        points.append(
+            SpaceWeatherTrendPoint(
+                observed_at=ensure_utc(
+                    measurement.observed_at
+                ),
+                value=float(
+                    measurement.numeric_value
+                ),
+            )
+        )
+
+    unit = None
+
+    if measurements:
+        unit = measurements[0].unit
+
+    return SpaceWeatherTrendResponse(
+        source=SOURCE_NAME,
+        metric_name=METRIC_NAME,
+        unit=unit,
+        count=len(points),
+        points=points,
+    )
+
+def get_solar_wind_trend(
+    db: Session,
+    start: datetime | None = None,
+    end: datetime | None = None,
+    limit: int = 500,
+) -> SolarWindTrendResponse:
+    if (
+        start is not None
+        and end is not None
+        and start > end
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "start must be earlier than "
+                "or equal to end."
+            ),
+        )
+
+    speed_measurements = list_measurements(
+        db=db,
+        source=SOURCE_NAME,
+        metric_name=(
+            SOLAR_WIND_SPEED_METRIC
+        ),
+        start=start,
+        end=end,
+        limit=limit,
+    )
+
+    density_measurements = list_measurements(
+        db=db,
+        source=SOURCE_NAME,
+        metric_name=(
+            SOLAR_WIND_DENSITY_METRIC
+        ),
+        start=start,
+        end=end,
+        limit=limit,
+    )
+
+    temperature_measurements = (
+        list_measurements(
+            db=db,
+            source=SOURCE_NAME,
+            metric_name=(
+                SOLAR_WIND_TEMPERATURE_METRIC
+            ),
+            start=start,
+            end=end,
+            limit=limit,
+        )
+    )
+
+    grouped: dict[
+        tuple[datetime, str | None],
+        dict,
+    ] = {}
+
+    def get_group(
+        measurement,
+    ) -> dict:
+        observed_at = ensure_utc(
+            measurement.observed_at
+        )
+
+        key = (
+            observed_at,
+            measurement.station,
+        )
+
+        if key not in grouped:
+            grouped[key] = {
+                "observed_at": observed_at,
+                "station": measurement.station,
+                "speed_km_s": None,
+                "density_per_cm3": None,
+                "temperature_k": None,
+            }
+
+        return grouped[key]
+
+    for measurement in speed_measurements:
+        if measurement.numeric_value is None:
+            continue
+
+        group = get_group(
+            measurement
+        )
+
+        group["speed_km_s"] = float(
+            measurement.numeric_value
+        )
+
+    for measurement in density_measurements:
+        if measurement.numeric_value is None:
+            continue
+
+        group = get_group(
+            measurement
+        )
+
+        group["density_per_cm3"] = float(
+            measurement.numeric_value
+        )
+
+    for measurement in (
+        temperature_measurements
+    ):
+        if measurement.numeric_value is None:
+            continue
+
+        group = get_group(
+            measurement
+        )
+
+        group["temperature_k"] = float(
+            measurement.numeric_value
+        )
+
+    ordered_values = sorted(
+        grouped.values(),
+        key=lambda item: item[
+            "observed_at"
+        ],
+    )
+
+    if len(ordered_values) > limit:
+        ordered_values = (
+            ordered_values[-limit:]
+        )
+
+    points = [
+        SolarWindTrendPoint(
+            **item
+        )
+        for item in ordered_values
+    ]
+
+    return SolarWindTrendResponse(
+        source=SOURCE_NAME,
+        count=len(points),
+        points=points,
+    )
+
+def get_current_space_weather_risk(
+    db: Session,
+) -> CurrentSpaceWeatherRiskResponse:
+    """
+    Build the current deterministic AstroCast
+    space-weather risk assessment from the latest
+    stored measurements.
+
+    Kp is required.
+
+    Solar-wind speed and density are optional
+    supporting measurements.
+    """
+
+    kp_measurement = get_latest_measurement(
+        db=db,
+        source=SOURCE_NAME,
+        metric_name=METRIC_NAME,
+    )
+
+    if kp_measurement is None:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "No stored planetary K-index "
+                "measurement is available. "
+                "Run NOAA ingestion first."
+            ),
+        )
+
+    if kp_measurement.numeric_value is None:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Stored planetary K-index "
+                "measurement has no numeric value."
+            ),
+        )
+
+    speed_measurement = (
+        get_latest_measurement(
+            db=db,
+            source=SOURCE_NAME,
+            metric_name=(
+                SOLAR_WIND_SPEED_METRIC
+            ),
+        )
+    )
+
+    density_measurement = (
+        get_latest_measurement(
+            db=db,
+            source=SOURCE_NAME,
+            metric_name=(
+                SOLAR_WIND_DENSITY_METRIC
+            ),
+        )
+    )
+
+    speed = None
+    speed_observed_at = None
+
+    if (
+        speed_measurement is not None
+        and speed_measurement.numeric_value
+        is not None
+    ):
+        speed = float(
+            speed_measurement.numeric_value
+        )
+
+        speed_observed_at = ensure_utc(
+            speed_measurement.observed_at
+        )
+
+    density = None
+    density_observed_at = None
+
+    if (
+        density_measurement is not None
+        and density_measurement.numeric_value
+        is not None
+    ):
+        density = float(
+            density_measurement.numeric_value
+        )
+
+        density_observed_at = ensure_utc(
+            density_measurement.observed_at
+        )
+
+    station = None
+
+    if speed_measurement is not None:
+        station = speed_measurement.station
+
+    elif density_measurement is not None:
+        station = density_measurement.station
+
+    risk = assess_space_weather_risk(
+        kp=kp_measurement.numeric_value,
+        solar_wind_speed_km_s=speed,
+        solar_wind_density_per_cm3=density,
+    )
+
+    kp = float(
+        kp_measurement.numeric_value
+    )
+
+    activity = classify_planetary_k_index(
+        kp
+    )
+
+    explanation = build_risk_explanation(
+        risk=risk,
+        activity=activity,
+        kp=kp,
+        solar_wind_speed_km_s=speed,
+        solar_wind_density_per_cm3=density,
+    )
+
+    return CurrentSpaceWeatherRiskResponse(
+        source=SOURCE_NAME,
+        assessed_at=datetime.now(
+            timezone.utc
+        ),
+        raw_values=(
+            SpaceWeatherRiskRawValues(
+                kp=float(
+                    kp_measurement.numeric_value
+                ),
+                kp_observed_at=ensure_utc(
+                    kp_measurement.observed_at
+                ),
+                solar_wind_speed_km_s=(
+                    speed
+                ),
+                solar_wind_speed_observed_at=(
+                    speed_observed_at
+                ),
+                solar_wind_density_per_cm3=(
+                    density
+                ),
+                solar_wind_density_observed_at=(
+                    density_observed_at
+                ),
+                solar_wind_station=station,
+            )
+        ),
+        risk=risk,
         explanation=explanation,
     )

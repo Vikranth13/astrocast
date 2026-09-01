@@ -128,10 +128,11 @@ Stores an audit record for each external API ingestion attempt.
 | `completed_at`     | Timestamp |       No | Attempt completion time   |
 | `duration_ms`      | Integer   |       No | Total duration            |
 | `http_status_code` | Integer   |       No | External HTTP result      |
-| `fetched_count`    | Integer   |      Yes | Source records received   |
-| `inserted_count`   | Integer   |      Yes | New records stored        |
-| `skipped_count`    | Integer   |      Yes | Duplicate records skipped |
-| `failed_count`     | Integer   |      Yes | Records that failed       |
+| `fetched_count`    | Integer   |      Yes | Raw source records received |
+| `normalized_count` | Integer   |      Yes | Logical records after normalization |
+| `inserted_count`   | Integer   |      Yes | Normalized rows newly stored |
+| `skipped_count`    | Integer   |      Yes | Normalized rows already stored |
+| `failed_count`     | Integer   |      Yes | Normalized rows that failed |
 | `error_message`    | Text      |       No | Failure information       |
 | `created_at`       | Timestamp |      Yes | Database creation time    |
 
@@ -145,6 +146,32 @@ failed
 ```
 
 Every ingestion attempt should produce a separate fetch-log row. This table intentionally has no deduplication constraint.
+
+#### Counter reconciliation
+
+For a successful run, every source satisfies:
+
+```text
+normalized_count = inserted_count + skipped_count
+```
+
+`fetched_count` is deliberately outside that equation, because normalization is not one to one. The difference between the two is signed and describes what normalization did:
+
+| Source | Typical relationship | Why |
+| --- | --- | --- |
+| Planetary K-index | `fetched = normalized` | One measurement per source record |
+| Alerts | `fetched > normalized` | NOAA reissues a corrected notification under the same serial; only the newest version survives parsing |
+| Solar wind | `fetched < normalized` | One reading yields separate speed, density, and temperature measurements |
+
+A superseded alert is not a duplicate, and a solar-wind expansion is not an error. Reporting either through `skipped_count` would misdescribe what happened, which is what the earlier accounting did.
+
+`normalized_count` is zero when a run fails before parsing. When parsing completed and a later step failed, it records the count the run had reached.
+
+#### Historical rows
+
+Migration `0dc8d08221c3` added `normalized_count` and backfilled existing successful rows with `inserted_count + skipped_count`.
+
+That backfill is exact for historical planetary K-index and solar-wind rows. It is **approximate for historical alert rows**, which were written when `skipped_count` was derived as `fetched_count - inserted_count`. Those rows inherit the old overstatement and can read slightly high. Alert runs recorded after that migration are correct.
 
 ## Deduplication Strategy
 
@@ -182,9 +209,16 @@ Space-weather measurements and alerts represent global scientific conditions, so
 
 Location relationships may be added later when local forecast history or saved locations are persisted.
 
+## Migrations
+
+| Revision | Purpose |
+| --- | --- |
+| `e2461684f17c` | Initial AstroCast schema |
+| `0dc8d08221c3` | Adds `api_fetch_logs.normalized_count` and backfills existing successful rows |
+
 ## Migration Verification
 
-The initial migration must support this sequence:
+Each migration must support this sequence:
 
 ```text
 Empty database

@@ -1,3 +1,9 @@
+from api.routes import (
+    admin_ingestion,
+    space_weather,
+    system,
+)
+
 from datetime import (
     datetime,
     timezone,
@@ -15,7 +21,19 @@ from schemas.space_weather import (
     CurrentSpaceWeatherResponse,
     GeomagneticActivity,
     PlanetaryKpFacts,
+    SpaceWeatherAlertDetailResponse,
+    SpaceWeatherAlertListResponse,
+    SpaceWeatherAlertResponse,
+    SpaceWeatherExplanation,
     SpaceWeatherFreshness,
+    SpaceWeatherTrendPoint,
+    SpaceWeatherTrendResponse,
+    SolarWindTrendPoint,
+    SolarWindTrendResponse,
+    CurrentSpaceWeatherRiskResponse,
+    SpaceWeatherRiskAssessment,
+    SpaceWeatherRiskFactor,
+    SpaceWeatherRiskRawValues,
 )
 from services.noaa_ingestion_service import (
     NoaaIngestionExternalError,
@@ -51,7 +69,7 @@ def test_health_route(
     monkeypatch,
 ) -> None:
     monkeypatch.setattr(
-        main,
+        system,
         "database_is_available",
         lambda: True,
     )
@@ -116,11 +134,22 @@ def test_current_space_weather_route(
             explanation=(
                 "Test explanation."
             ),
+            explanation_detail=(
+                SpaceWeatherExplanation(
+                    summary="Test summary.",
+                    details=[
+                        "Test detail.",
+                    ],
+                    caveats=[
+                        "Test caveat.",
+                    ],
+                )
+            ),
         )
     )
 
     monkeypatch.setattr(
-        main,
+        space_weather,
         "get_current_space_weather",
         lambda db: expected_response,
     )
@@ -161,13 +190,14 @@ def test_ingestion_route_returns_summary(
         status="success",
         fetch_log_id=10,
         fetched=62,
+        normalized=62,
         inserted=0,
         skipped=62,
         failed=0,
     )
 
     monkeypatch.setattr(
-        main,
+        admin_ingestion,
         "ingest_noaa_planetary_k_index",
         lambda db: expected_result,
     )
@@ -183,6 +213,7 @@ def test_ingestion_route_returns_summary(
         "status": "success",
         "fetch_log_id": 10,
         "fetched": 62,
+        "normalized": 62,
         "inserted": 0,
         "skipped": 62,
         "failed": 0,
@@ -200,7 +231,7 @@ def test_ingestion_route_maps_external_error_to_502(
         )
 
     monkeypatch.setattr(
-        main,
+        admin_ingestion,
         "ingest_noaa_planetary_k_index",
         raise_external_error,
     )
@@ -211,6 +242,576 @@ def test_ingestion_route_maps_external_error_to_502(
 
     assert response.status_code == 502
 
+    body = response.json()
+
+    assert (
+        body["error"]["code"]
+        == "upstream_unavailable"
+    )
+
+    # The raised exception text is logged, not
+    # returned. Upstream failures can carry connection
+    # internals and library object reprs.
+    assert (
+        "NOAA is unavailable."
+        not in body["error"]["message"]
+    )
+
+def test_alert_list_route(
+    monkeypatch,
+) -> None:
+    expected_alert = (
+        SpaceWeatherAlertResponse(
+            id=11,
+            source="NOAA_SWPC",
+            external_id="K05A:2047",
+            alert_type="warning",
+            severity="G1",
+            issued_at=datetime(
+                2026,
+                8,
+                19,
+                5,
+                45,
+                tzinfo=timezone.utc,
+            ),
+            expires_at=None,
+            status="unknown",
+            summary=(
+                "ALERT: Geomagnetic "
+                "K-index of 5"
+            ),
+            ingested_at=datetime(
+                2026,
+                8,
+                24,
+                21,
+                21,
+                tzinfo=timezone.utc,
+            ),
+        )
+    )
+
+    expected_response = (
+        SpaceWeatherAlertListResponse(
+            count=1,
+            alerts=[
+                expected_alert
+            ],
+        )
+    )
+
+    captured = {}
+
+    def fake_get_alerts(
+        db,
+        severity=None,
+        alert_type=None,
+        source=None,
+        issued_start=None,
+        issued_end=None,
+        status=None,
+        limit=100,
+    ):
+        captured["severity"] = severity
+        captured["alert_type"] = (
+            alert_type
+        )
+        captured["source"] = source
+        captured["status"] = status
+        captured["limit"] = limit
+
+        return expected_response
+
+    monkeypatch.setattr(
+        space_weather,
+        "get_space_weather_alerts",
+        fake_get_alerts,
+    )
+
+    response = client.get(
+        (
+            "/api/space-weather/alerts"
+            "?severity=G1"
+            "&type=warning"
+            "&source=NOAA_SWPC"
+            "&status=unknown"
+            "&limit=5"
+        )
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["count"] == 1
+
+    assert (
+        body["alerts"][0]["severity"]
+        == "G1"
+    )
+
+    assert (
+        captured["severity"]
+        == "G1"
+    )
+
+    assert (
+        captured["alert_type"]
+        == "warning"
+    )
+
+    assert (
+        captured["source"]
+        == "NOAA_SWPC"
+    )
+
+    assert (
+        captured["status"]
+        == "unknown"
+    )
+
+    assert captured["limit"] == 5
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "?type=garbage",
+        "?status=banana",
+        "?severity=G9",
+        "?source=OTHER",
+        "?limit=0",
+        "?limit=501",
+    ],
+)
+def test_alert_list_rejects_invalid_filters(
+    query,
+) -> None:
+    response = client.get(
+        (
+            "/api/space-weather/alerts"
+            f"{query}"
+        )
+    )
+
+    assert response.status_code == 422
+
+def test_alert_detail_route(
+    monkeypatch,
+) -> None:
+    expected_response = (
+        SpaceWeatherAlertDetailResponse(
+            id=1,
+            source="NOAA_SWPC",
+            external_id="EF3A:3727",
+            alert_type="alert",
+            severity=None,
+            issued_at=datetime(
+                2026,
+                8,
+                24,
+                10,
+                36,
+                tzinfo=timezone.utc,
+            ),
+            expires_at=None,
+            status="unknown",
+            summary=(
+                "CONTINUED ALERT: "
+                "Electron flux exceeded"
+            ),
+            ingested_at=datetime(
+                2026,
+                8,
+                24,
+                21,
+                21,
+                tzinfo=timezone.utc,
+            ),
+            explanation=(
+                SpaceWeatherExplanation(
+                    summary="Test summary.",
+                    details=[],
+                    caveats=[
+                        "Test caveat.",
+                    ],
+                )
+            ),
+        )
+    )
+
+    monkeypatch.setattr(
+        space_weather,
+        "get_space_weather_alert",
+        lambda db, alert_id: (
+            expected_response
+        ),
+    )
+
+    response = client.get(
+        "/api/space-weather/alerts/1"
+    )
+
+    assert response.status_code == 200
+
+    assert response.json()["id"] == 1
+
+    assert (
+        response.json()["external_id"]
+        == "EF3A:3727"
+    )
+
+def test_alert_ingestion_route_returns_summary(
+    monkeypatch,
+) -> None:
+    expected_result = IngestionResult(
+        source="NOAA_SWPC",
+        status="success",
+        fetch_log_id=20,
+        fetched=77,
+        normalized=76,
+        inserted=0,
+        skipped=76,
+        failed=0,
+    )
+
+    monkeypatch.setattr(
+        admin_ingestion,
+        "ingest_noaa_alerts",
+        lambda db: expected_result,
+    )
+
+    response = client.post(
+        "/api/admin/ingestion/noaa/alerts"
+    )
+
+    assert response.status_code == 200
+
     assert response.json() == {
-        "detail": "NOAA is unavailable."
+        "source": "NOAA_SWPC",
+        "status": "success",
+        "fetch_log_id": 20,
+        "fetched": 77,
+        "normalized": 76,
+        "inserted": 0,
+        "skipped": 76,
+        "failed": 0,
     }
+
+def test_kp_trend_route(
+    monkeypatch,
+) -> None:
+    expected_response = (
+        SpaceWeatherTrendResponse(
+            source="NOAA_SWPC",
+            metric_name=(
+                "planetary_k_index"
+            ),
+            unit=None,
+            count=1,
+            points=[
+                SpaceWeatherTrendPoint(
+                    observed_at=datetime(
+                        2026,
+                        8,
+                        20,
+                        tzinfo=timezone.utc,
+                    ),
+                    value=2.33,
+                )
+            ],
+        )
+    )
+
+    captured = {}
+
+    def fake_get_kp_trend(
+        db,
+        start=None,
+        end=None,
+        limit=500,
+    ):
+        captured["start"] = start
+        captured["end"] = end
+        captured["limit"] = limit
+
+        return expected_response
+
+    monkeypatch.setattr(
+        space_weather,
+        "get_kp_trend",
+        fake_get_kp_trend,
+    )
+
+    response = client.get(
+        (
+            "/api/space-weather/trends/kp"
+            "?limit=25"
+        )
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["count"] == 1
+
+    assert (
+        body["points"][0]["value"]
+        == 2.33
+    )
+
+    assert captured["limit"] == 25
+
+@pytest.mark.parametrize(
+    "limit",
+    [
+        0,
+        2001,
+    ],
+)
+def test_kp_trend_rejects_invalid_limit(
+    limit,
+) -> None:
+    response = client.get(
+        (
+            "/api/space-weather/trends/kp"
+            f"?limit={limit}"
+        )
+    )
+
+    assert response.status_code == 422
+
+def test_solar_wind_trend_route(
+    monkeypatch,
+) -> None:
+    expected_response = (
+        SolarWindTrendResponse(
+            source="NOAA_SWPC",
+            count=1,
+            points=[
+                SolarWindTrendPoint(
+                    observed_at=datetime(
+                        2026,
+                        8,
+                        26,
+                        tzinfo=timezone.utc,
+                    ),
+                    station="SOLAR1",
+                    speed_km_s=350.0,
+                    density_per_cm3=4.2,
+                    temperature_k=40000,
+                )
+            ],
+        )
+    )
+
+    captured = {}
+
+    def fake_get_solar_wind_trend(
+        db,
+        start=None,
+        end=None,
+        limit=500,
+    ):
+        captured["start"] = start
+        captured["end"] = end
+        captured["limit"] = limit
+
+        return expected_response
+
+    monkeypatch.setattr(
+        space_weather,
+        "get_solar_wind_trend",
+        fake_get_solar_wind_trend,
+    )
+
+    response = client.get(
+        (
+            "/api/space-weather/"
+            "trends/solar-wind"
+            "?limit=25"
+        )
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["count"] == 1
+
+    assert (
+        body["points"][0][
+            "speed_km_s"
+        ]
+        == 350.0
+    )
+
+    assert captured["limit"] == 25
+
+@pytest.mark.parametrize(
+    "limit",
+    [
+        0,
+        2001,
+    ],
+)
+def test_solar_wind_trend_rejects_invalid_limit(
+    limit,
+) -> None:
+    response = client.get(
+        (
+            "/api/space-weather/"
+            "trends/solar-wind"
+            f"?limit={limit}"
+        )
+    )
+
+    assert response.status_code == 422
+
+def test_solar_wind_ingestion_route_returns_summary(
+    monkeypatch,
+) -> None:
+    expected_result = IngestionResult(
+        source="NOAA_SWPC",
+        status="success",
+        fetch_log_id=16,
+        fetched=3408,
+        normalized=4101,
+        inserted=0,
+        skipped=4101,
+        failed=0,
+    )
+
+    monkeypatch.setattr(
+        admin_ingestion,
+        "ingest_noaa_solar_wind",
+        lambda db: expected_result,
+    )
+
+    response = client.post(
+        "/api/admin/ingestion/noaa/solar-wind"
+    )
+
+    assert response.status_code == 200
+
+    assert response.json() == {
+        "source": "NOAA_SWPC",
+        "status": "success",
+        "fetch_log_id": 16,
+        "fetched": 3408,
+        "normalized": 4101,
+        "inserted": 0,
+        "skipped": 4101,
+        "failed": 0,
+    }
+
+def test_current_risk_route(
+    monkeypatch,
+) -> None:
+    expected_response = (
+        CurrentSpaceWeatherRiskResponse(
+            source="NOAA_SWPC",
+            assessed_at=datetime(
+                2026,
+                8,
+                26,
+                2,
+                0,
+                tzinfo=timezone.utc,
+            ),
+            raw_values=(
+                SpaceWeatherRiskRawValues(
+                    kp=5.0,
+                    kp_observed_at=datetime(
+                        2026,
+                        8,
+                        26,
+                        0,
+                        0,
+                        tzinfo=timezone.utc,
+                    ),
+                    solar_wind_speed_km_s=550.0,
+                    solar_wind_speed_observed_at=(
+                        datetime(
+                            2026,
+                            8,
+                            26,
+                            1,
+                            0,
+                            tzinfo=timezone.utc,
+                        )
+                    ),
+                    solar_wind_density_per_cm3=12.0,
+                    solar_wind_density_observed_at=(
+                        datetime(
+                            2026,
+                            8,
+                            26,
+                            1,
+                            0,
+                            tzinfo=timezone.utc,
+                        )
+                    ),
+                    solar_wind_station="SOLAR1",
+                )
+            ),
+            risk=SpaceWeatherRiskAssessment(
+                level="high",
+                contributing_factors=[
+                    SpaceWeatherRiskFactor(
+                        rule_id="KP_G1_G2",
+                        factor=(
+                            "planetary_k_index"
+                        ),
+                        value=5.0,
+                        unit="index",
+                        description=(
+                            "Kp supporting factor"
+                        ),
+                    )
+                ],
+                rule_ids=[
+                    "KP_G1_G2",
+                    "SW_FAST_DENSE_ESCALATION",
+                ],
+            ),
+            explanation=(
+                SpaceWeatherExplanation(
+                    summary="Test summary.",
+                    details=[
+                        "Test detail.",
+                    ],
+                    caveats=[
+                        "Test caveat.",
+                    ],
+                )
+            ),
+        )
+    )
+
+    monkeypatch.setattr(
+        space_weather,
+        "get_current_space_weather_risk",
+        lambda db: expected_response,
+    )
+
+    response = client.get(
+        "/api/space-weather/risk"
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["risk"]["level"] == "high"
+
+    assert (
+        body["raw_values"]["kp"]
+        == 5.0
+    )
+
+    assert (
+        "SW_FAST_DENSE_ESCALATION"
+        in body["risk"]["rule_ids"]
+    )

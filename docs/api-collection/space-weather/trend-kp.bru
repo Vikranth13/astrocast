@@ -1,0 +1,17 @@
+meta {
+  name: Trend - Kp
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/space-weather/trends/kp?limit=20
+  body: none
+  auth: none
+}
+
+params:query {
+  limit: 20
+  ~start: 2026-08-01T00:00:00Z
+  ~end: 2026-08-31T23:59:59Z
+}

@@ -1,0 +1,22 @@
+meta {
+  name: Alerts - filtered
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/space-weather/alerts?type=warning&status=expired&limit=5
+  body: none
+  auth: none
+}
+
+params:query {
+  type: warning
+  status: expired
+  limit: 5
+}
+
+docs {
+  Filters combine with AND. severity, type, source,
+  issued_start, issued_end, and status are available.
+}

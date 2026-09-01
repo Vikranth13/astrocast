@@ -15,6 +15,20 @@ class IngestionResult(BaseModel):
     fetch_log_id: int
 
     fetched: int
+    """Raw records returned by the source."""
+
+    normalized: int
+    """
+    Logical records produced after validation,
+    filtering, and supersede resolution.
+
+    This is the value that reconciles:
+    normalized == inserted + skipped.
+
+    It may be lower than fetched, when source rows
+    are superseded or filtered, or higher, when one
+    reading yields several measurements.
+    """
 
     inserted: int
 
