@@ -1,0 +1,40 @@
+.space-weather-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.space-weather-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.space-weather-header h2 {
+  font-size: var(--text-xl);
+}
+
+.space-weather-kp {
+  color: var(--color-text);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+}
+
+.space-weather-label {
+  font-weight: 600;
+}
+
+.space-weather-details {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.space-weather-note {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}

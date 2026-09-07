@@ -178,9 +178,7 @@ describe(
         );
 
         expect(
-          await screen.findByText(
-            "82 / 100"
-          )
+          await screen.findByText("82")
         ).toBeInTheDocument();
 
         expect(
@@ -189,7 +187,7 @@ describe(
 
         expect(
           screen.getByText(
-            /Location: New Brunswick/
+            /New Brunswick, New Jersey/
           )
         ).toBeInTheDocument();
 
@@ -247,6 +245,44 @@ describe(
         expect(
           screen.getByText("Kp 1.67")
         ).toBeInTheDocument();
+      }
+    );
+
+
+    it(
+      "shows the new sections regardless of the search",
+      async () => {
+        render(<ObserveTonight />);
+
+        await screen.findByText(
+          "Kp 1.67"
+        );
+
+        for (const heading of [
+          "Hourly conditions",
+          "Score breakdown",
+          "Not built yet",
+        ]) {
+          expect(
+            screen.getByRole(
+              "heading",
+              {
+                level: 2,
+                name: heading,
+              }
+            )
+          ).toBeInTheDocument();
+        }
+
+        for (const placeholder of [
+          "Moon",
+          "Darkness window",
+          "Object-specific scores",
+        ]) {
+          expect(
+            screen.getByText(placeholder)
+          ).toBeInTheDocument();
+        }
       }
     );
   }

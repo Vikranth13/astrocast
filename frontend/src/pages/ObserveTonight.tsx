@@ -12,6 +12,41 @@ import {
 
 import SpaceWeatherCard from "../components/SpaceWeatherCard";
 
+import HourlyConditionsTable from "../components/observe/HourlyConditionsTable";
+import ScoreBreakdown from "../components/observe/ScoreBreakdown";
+
+import Card from "../components/ui/Card";
+import EmptyState from "../components/ui/EmptyState";
+import ErrorState from "../components/ui/ErrorState";
+import MetricCard from "../components/ui/MetricCard";
+import SectionHeader from "../components/ui/SectionHeader";
+
+import {
+  MOCK_OBSERVE_TONIGHT,
+} from "../data/mockObserveTonight";
+
+import "../components/observe/observe.css";
+
+const WEEK_SIX_PLACEHOLDERS = [
+  {
+    title: "Moon",
+    message:
+      "Moon phase, illumination, and rise and set times arrive in Week 6.",
+  },
+
+  {
+    title: "Darkness window",
+    message:
+      "Astronomical twilight and true darkness arrive in Week 6.",
+  },
+
+  {
+    title: "Object-specific scores",
+    message:
+      "Per-target visibility scoring arrives in Week 6.",
+  },
+];
+
 function ObserveTonight() {
   const [city, setCity] = useState("");
 
@@ -121,163 +156,234 @@ function ObserveTonight() {
   }
 
   return (
-    <>
-      <section className="hero">
-        <p className="eyebrow">
-          AstroCast
-        </p>
+    <section className="page">
+      <h1>Observe Tonight</h1>
 
-        <h1>
-          Find out if tonight is good
-          for stargazing.
-        </h1>
+      <p className="page-intro">
+        Check sky conditions for a city, and see what is
+        working for and against you tonight.
+      </p>
 
-        <p className="description">
-          Enter a city to check sky
-          conditions, weather, and a
-          simple stargazing score.
-        </p>
-      </section>
+      <div className="observe">
+        <section className="observe-section">
+          <div className="observe-search">
+            <input
+              type="text"
+              placeholder="Enter city name..."
+              value={city}
+              onChange={(event) =>
+                setCity(event.target.value)
+              }
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  handleCheckSky();
+                }
+              }}
+            />
 
-      <section className="search-panel">
-        <input
-          type="text"
-          placeholder="Enter city name..."
-          value={city}
-          onChange={(event) =>
-            setCity(event.target.value)
-          }
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              handleCheckSky();
-            }
-          }}
-        />
+            <button
+              type="button"
+              onClick={handleCheckSky}
+              disabled={isLoading}
+            >
+              {isLoading
+                ? "Checking..."
+                : "Check Sky"}
+            </button>
+          </div>
 
-        <button
-          type="button"
-          onClick={handleCheckSky}
-          disabled={isLoading}
-        >
-          {isLoading
-            ? "Checking..."
-            : "Check Sky"}
-        </button>
-      </section>
-
-      {errorMessage && (
-        <p className="error-message">
-          {errorMessage}
-        </p>
-      )}
-
-      <section className="results-grid">
-        <div className="card">
-          <h2>Stargazing Score</h2>
-
-          <p className="empty-value">
-            {forecast
-              ? `${forecast.stargazing.score} / 100`
-              : "-- / 100"}
-          </p>
-
-          <p>
-            {forecast
-              ? forecast.stargazing.rating
-              : "Enter a city to begin."}
-          </p>
-        </div>
-
-        <div className="card">
-          <h2>Conditions</h2>
-
-          <p>
-            Cloud Cover:{" "}
-            {forecast?.conditions
-              .cloud_cover_percent ?? "--"}
-            %
-          </p>
-
-          <p>
-            Rain Chance:{" "}
-            {forecast?.conditions
-              .precipitation_probability_percent
-              ?? "--"}
-            %
-          </p>
-
-          <p>
-            Temperature:{" "}
-            {forecast?.conditions
-              .temperature_f ?? "--"}
-            °F
-          </p>
-
-          <p>
-            Wind Speed:{" "}
-            {forecast?.conditions
-              .wind_speed_mph ?? "--"}{" "}
-            mph
-          </p>
-
-          <p>
-            Visibility:{" "}
-            {forecast?.conditions
-              .visibility_miles ?? "--"}{" "}
-            miles
-          </p>
-        </div>
-
-        <div className="card">
-          <h2>Explanation</h2>
-
-          <p>
-            {forecast
-              ? forecast.stargazing
-                  .explanation
-              : (
-                "Enter a city to see "
-                + "whether tonight is "
-                + "a good night for "
-                + "observing the sky."
-              )}
-          </p>
-        </div>
-
-        <SpaceWeatherCard
-          data={spaceWeather}
-          isLoading={
-            isSpaceWeatherLoading
-          }
-          errorMessage={
-            spaceWeatherError
-          }
-        />
-      </section>
-
-      {forecast && (
-        <section className="location-card">
-          <h2>
-            Location:{" "}
-            {forecast.location.name}
-
-            {forecast.location.region
-              ? `, ${forecast.location.region}`
-              : ""}
-          </h2>
-
-          <p>
-            Country:{" "}
-            {forecast.location.country}
-          </p>
-
-          <p>
-            Forecast Time:{" "}
-            {forecast.forecast_time}
-          </p>
+          {errorMessage && (
+            <ErrorState
+              message={errorMessage}
+            />
+          )}
         </section>
-      )}
-    </>
+
+        <section className="observe-section">
+          <SectionHeader
+            title="Tonight's forecast"
+            description="Live conditions for the city you search."
+          />
+
+          <div className="observe-grid">
+            <Card className="observe-summary">
+              <div className="observe-score">
+                <span
+                  className={
+                    forecast
+                      ? "observe-score-value"
+                      : "observe-score-value observe-score-empty"
+                  }
+                >
+                  {forecast
+                    ? forecast.stargazing.score
+                    : "—"}
+                </span>
+
+                <span className="observe-score-total">
+                  / 100
+                </span>
+
+                <span className="observe-score-rating">
+                  {forecast
+                    ? forecast.stargazing.rating
+                    : ""}
+                </span>
+              </div>
+
+              <p className="observe-note">
+                {forecast
+                  ? forecast.stargazing.explanation
+                  : (
+                    "Enter a city to see whether tonight "
+                    + "is a good night for observing the sky."
+                  )}
+              </p>
+            </Card>
+
+            <MetricCard
+              label="Cloud cover"
+              value={
+                forecast?.conditions
+                  .cloud_cover_percent
+              }
+              unit="%"
+            />
+
+            <MetricCard
+              label="Rain chance"
+              value={
+                forecast?.conditions
+                  .precipitation_probability_percent
+              }
+              unit="%"
+            />
+
+            <MetricCard
+              label="Temperature"
+              value={
+                forecast?.conditions
+                  .temperature_f
+              }
+              unit="°F"
+            />
+
+            <MetricCard
+              label="Wind speed"
+              value={
+                forecast?.conditions
+                  .wind_speed_mph
+              }
+              unit="mph"
+            />
+
+            <MetricCard
+              label="Visibility"
+              value={
+                forecast?.conditions
+                  .visibility_miles
+              }
+              unit="mi"
+            />
+          </div>
+
+          {forecast && (
+            <Card>
+              <div className="observe-location">
+                <span className="observe-card-title">
+                  Location
+                </span>
+
+                <p>
+                  {forecast.location.name}
+
+                  {forecast.location.region
+                    ? `, ${forecast.location.region}`
+                    : ""}
+                </p>
+
+                <p className="observe-note">
+                  {forecast.location.country}
+                </p>
+
+                <p className="observe-note">
+                  Forecast time:{" "}
+                  {forecast.forecast_time}
+                </p>
+              </div>
+            </Card>
+          )}
+        </section>
+
+        <section className="observe-section">
+          <SectionHeader
+            title="Space weather"
+            description="Global geomagnetic activity from stored NOAA data."
+          />
+
+          <SpaceWeatherCard
+            data={spaceWeather}
+            isLoading={
+              isSpaceWeatherLoading
+            }
+            errorMessage={
+              spaceWeatherError
+            }
+          />
+        </section>
+
+        <section className="observe-section">
+          <SectionHeader
+            title="Hourly conditions"
+            description="A sample night. The backend already fetches hourly weather but does not expose it yet, so this is wired up in Week 5."
+          />
+
+          <HourlyConditionsTable
+            hours={MOCK_OBSERVE_TONIGHT.hours}
+          />
+        </section>
+
+        <section className="observe-section">
+          <SectionHeader
+            title="Score breakdown"
+            description="How each factor moves the score, using the thresholds the scoring service already applies. Sample values until Week 5."
+          />
+
+          <ScoreBreakdown
+            factors={
+              MOCK_OBSERVE_TONIGHT.factors
+            }
+          />
+        </section>
+
+        <section className="observe-section">
+          <SectionHeader
+            title="Not built yet"
+            description="Astronomy intelligence is Week 6."
+          />
+
+          <div className="observe-grid">
+            {WEEK_SIX_PLACEHOLDERS.map(
+              (placeholder) => (
+                <Card
+                  key={placeholder.title}
+                >
+                  <span className="observe-card-title">
+                    {placeholder.title}
+                  </span>
+
+                  <EmptyState
+                    message={
+                      placeholder.message
+                    }
+                  />
+                </Card>
+              )
+            )}
+          </div>
+        </section>
+      </div>
+    </section>
   );
 }
 

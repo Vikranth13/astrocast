@@ -38,13 +38,13 @@ Fixed during Week 3 verification, outside the listed tasks:
 
 Multi-page frontend built against mock data first, so layout work does not wait on backend endpoints.
 
-- [ ] Add React Router with Dashboard, Observe Tonight, Space Weather, Alerts, Trends, Learn, and About routes.
-- [ ] Desktop and mobile navigation.
-- [ ] Page-level loading, empty, and error patterns.
-- [ ] Shared `Card`, `MetricCard`, `SeverityBadge`, `SectionHeader`, `LoadingState`, `ErrorState`, `EmptyState`, and `DataFreshness` components.
-- [ ] Night-friendly colour and typography system.
-- [ ] Dashboard built on mock data.
-- [ ] Move and improve the Week 1 forecast into the Observe Tonight page.
+- [x] Add React Router with Dashboard, Observe Tonight, Space Weather, Alerts, Trends, Learn, and About routes.
+- [x] Desktop and mobile navigation.
+- [x] Page-level loading, empty, and error patterns.
+- [x] Shared `Card`, `MetricCard`, `SeverityBadge`, `SectionHeader`, `LoadingState`, `ErrorState`, `EmptyState`, and `DataFreshness` components.
+- [x] Night-friendly colour and typography system.
+- [x] Dashboard built on mock data.
+- [x] Move and improve the Week 1 forecast into the Observe Tonight page.
 - [ ] Space Weather and Alerts pages with severity badges and filters.
 - [ ] Recharts line charts on mock time series.
 - [ ] Learn page concept cards.
@@ -56,6 +56,7 @@ Multi-page frontend built against mock data first, so layout work does not wait 
 Quality improvements that must not delay required work.
 
 - [ ] Switch the frontend space-weather card to `explanation_detail` and render caveats distinctly.
+- [ ] Expose the hourly weather series and the per-factor score penalties from the backend. Both are already fetched and computed in `weather_service.py` and `scoring_service.py`, then discarded before the response, which blocks wiring the Observe Tonight hourly table and score breakdown in Week 5.
 - [ ] Structured backend logging.
 - [ ] Authenticate the ingestion administration routes.
 - [ ] Scheduled ingestion instead of manual runs.

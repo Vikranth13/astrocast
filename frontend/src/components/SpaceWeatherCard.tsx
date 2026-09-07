@@ -2,7 +2,13 @@ import type {
   CurrentSpaceWeather,
 } from "../api/astrocastApi";
 
+import Card from "./ui/Card";
 import DataFreshness from "./ui/DataFreshness";
+import EmptyState from "./ui/EmptyState";
+import ErrorState from "./ui/ErrorState";
+import LoadingState from "./ui/LoadingState";
+
+import "./SpaceWeatherCard.css";
 
 type SpaceWeatherCardProps = {
   data: CurrentSpaceWeather | null;
@@ -25,42 +31,42 @@ function SpaceWeatherCard({
 }: SpaceWeatherCardProps) {
   if (isLoading) {
     return (
-      <div className="card space-weather-card">
+      <Card className="space-weather-card">
         <h2>Space Weather</h2>
 
-        <p>
-          Loading NOAA geomagnetic data...
-        </p>
-      </div>
+        <LoadingState
+          message="Loading NOAA geomagnetic data..."
+        />
+      </Card>
     );
   }
 
   if (errorMessage) {
     return (
-      <div className="card space-weather-card">
+      <Card className="space-weather-card">
         <h2>Space Weather</h2>
 
-        <p className="error-message">
-          {errorMessage}
-        </p>
-      </div>
+        <ErrorState
+          message={errorMessage}
+        />
+      </Card>
     );
   }
 
   if (!data) {
     return (
-      <div className="card space-weather-card">
+      <Card className="space-weather-card">
         <h2>Space Weather</h2>
 
-        <p>
-          No stored NOAA data is available.
-        </p>
-      </div>
+        <EmptyState
+          message="No stored NOAA data is available."
+        />
+      </Card>
     );
   }
 
   return (
-    <div className="card space-weather-card">
+    <Card className="space-weather-card">
       <div className="space-weather-header">
         <h2>Space Weather</h2>
 
@@ -115,7 +121,7 @@ function SpaceWeatherCard({
         This describes global geomagnetic
         activity, not a local aurora forecast.
       </p>
-    </div>
+    </Card>
   );
 }
 
