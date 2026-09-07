@@ -13,7 +13,9 @@
 .observe-search {
   display: flex;
   gap: var(--space-3);
+  width: 100%;
   max-width: 600px;
+  margin: 0 auto;
 }
 
 .observe-grid {
@@ -76,6 +78,7 @@
 .observe-location {
   display: grid;
   gap: var(--space-2);
+  text-align: center;
 }
 
 .hourly-scroll {
