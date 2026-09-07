@@ -1,252 +1,170 @@
 import {
   render,
   screen,
+  within,
 } from "@testing-library/react";
 
 import userEvent from "@testing-library/user-event";
 
 import {
-  beforeEach,
+  MemoryRouter,
+} from "react-router";
+
+import {
   describe,
   expect,
   it,
-  vi,
 } from "vitest";
 
 import App from "./App";
 
 import {
-  getCurrentSpaceWeather,
-  getForecast,
-} from "./api/astrocastApi";
-
-import type {
-  AstroCastForecast,
-  CurrentSpaceWeather,
-} from "./api/astrocastApi";
+  NAVIGATION_ITEMS,
+} from "./layout/navigation";
 
 
-vi.mock(
-  "./api/astrocastApi",
-  () => ({
-    getCurrentSpaceWeather: vi.fn(),
-    getForecast: vi.fn(),
-  })
-);
+function renderAt(path: string) {
+  return render(
+    <MemoryRouter
+      initialEntries={[path]}
+    >
+      <App />
+    </MemoryRouter>
+  );
+}
 
 
-const mockedGetCurrentSpaceWeather =
-  vi.mocked(getCurrentSpaceWeather);
-
-const mockedGetForecast =
-  vi.mocked(getForecast);
-
-
-const SPACE_WEATHER_DATA:
-  CurrentSpaceWeather = {
-    source: "NOAA_SWPC",
-
-    metric_name: "planetary_k_index",
-
-    observed_at:
-      "2026-08-03T15:00:00Z",
-
-    ingested_at:
-      "2026-08-03T18:30:16Z",
-
-    freshness: {
-      status: "current",
-      age_minutes: 180,
-    },
-
-    geomagnetic_activity: {
-      level: "below_storm",
-      label: (
-        "Below geomagnetic storm level"
-      ),
-      noaa_scale: null,
-      is_storm: false,
-    },
-
-    facts: {
-      kp: 1.67,
-      a_running: 6,
-      station_count: 8,
-    },
-
-    explanation: (
-      "The latest observed planetary "
-      + "K-index is 1.67."
-    ),
-  };
-
-
-const FORECAST_DATA:
-  AstroCastForecast = {
-    location: {
-      name: "New Brunswick",
-      region: "New Jersey",
-      country: "United States",
-      latitude: 40.48622,
-      longitude: -74.45182,
-      timezone: "America/New_York",
-    },
-
-    forecast_time:
-      "2026-08-05T22:00:00",
-
-    conditions: {
-      cloud_cover_percent: 15,
-      precipitation_probability_percent: 5,
-      temperature_f: 71,
-      wind_speed_mph: 4,
-      visibility_miles: 10,
-    },
-
-    stargazing: {
-      score: 82,
-      rating: "Good",
-      explanation: (
-        "Low cloud cover and good "
-        + "visibility support stargazing."
-      ),
-    },
-  };
+function getPrimaryNav() {
+  return screen.getByRole(
+    "navigation",
+    {
+      name: "Primary",
+    }
+  );
+}
 
 
 describe(
-  "App",
+  "App routing",
   () => {
-    beforeEach(() => {
-      vi.resetAllMocks();
-
-      mockedGetCurrentSpaceWeather
-        .mockResolvedValue(
-          SPACE_WEATHER_DATA
-        );
-
-      mockedGetForecast
-        .mockResolvedValue(
-          FORECAST_DATA
-        );
-    });
-
-
     it(
-      "loads global space weather when the page opens",
-      async () => {
-        render(<App />);
+      "renders the dashboard at the root path",
+      () => {
+        renderAt("/");
 
         expect(
-          await screen.findByText(
-            "Kp 1.67"
-          )
-        ).toBeInTheDocument();
-
-        expect(
-          mockedGetCurrentSpaceWeather
-        ).toHaveBeenCalledTimes(1);
-      }
-    );
-
-
-    it(
-      "loads a city forecast after user input",
-      async () => {
-        const user = userEvent.setup();
-
-        render(<App />);
-
-        await screen.findByText(
-          "Kp 1.67"
-        );
-
-        await user.type(
-          screen.getByPlaceholderText(
-            "Enter city name..."
-          ),
-          "New Brunswick"
-        );
-
-        await user.click(
           screen.getByRole(
-            "button",
+            "heading",
             {
-              name: "Check Sky",
+              level: 1,
+              name: "Dashboard",
             }
           )
-        );
-
-        expect(
-          await screen.findByText(
-            "82 / 100"
-          )
         ).toBeInTheDocument();
-
-        expect(
-          screen.getByText("Good")
-        ).toBeInTheDocument();
-
-        expect(
-          screen.getByText(
-            /Location: New Brunswick/
-          )
-        ).toBeInTheDocument();
-
-        expect(
-          mockedGetForecast
-        ).toHaveBeenCalledWith(
-          "New Brunswick"
-        );
       }
     );
 
 
     it(
-      "preserves space weather when city lookup fails",
-      async () => {
-        const user = userEvent.setup();
+      "links to every planned page",
+      () => {
+        renderAt("/");
 
-        mockedGetForecast
-          .mockRejectedValueOnce(
-            new Error(
-              "No location found "
-              + "for city: Alabasta"
+        const navigation = getPrimaryNav();
+
+        for (const item of NAVIGATION_ITEMS) {
+          expect(
+            within(navigation).getByRole(
+              "link",
+              {
+                name: item.label,
+              }
             )
-          );
+          ).toBeInTheDocument();
+        }
+      }
+    );
 
-        render(<App />);
 
-        await screen.findByText(
-          "Kp 1.67"
-        );
+    it(
+      "moves to another page from the navigation",
+      async () => {
+        const user = userEvent.setup();
 
-        await user.type(
-          screen.getByPlaceholderText(
-            "Enter city name..."
-          ),
-          "Alabasta"
-        );
+        renderAt("/");
 
         await user.click(
-          screen.getByRole(
-            "button",
+          within(getPrimaryNav()).getByRole(
+            "link",
             {
-              name: "Check Sky",
+              name: "Alerts",
             }
           )
         );
 
         expect(
-          await screen.findByText(
-            "No location found "
-            + "for city: Alabasta"
+          await screen.findByRole(
+            "heading",
+            {
+              level: 1,
+              name: "Alerts",
+            }
           )
         ).toBeInTheDocument();
+      }
+    );
+
+
+    it(
+      "shows a not found page for an unknown route",
+      () => {
+        renderAt("/not-a-real-page");
 
         expect(
-          screen.getByText("Kp 1.67")
+          screen.getByRole(
+            "heading",
+            {
+              level: 1,
+              name: "Page not found",
+            }
+          )
         ).toBeInTheDocument();
+      }
+    );
+
+
+    it(
+      "opens the navigation menu on small screens",
+      async () => {
+        const user = userEvent.setup();
+
+        renderAt("/");
+
+        const toggle = screen.getByRole(
+          "button",
+          {
+            name: "Open menu",
+          }
+        );
+
+        expect(toggle).toHaveAttribute(
+          "aria-expanded",
+          "false"
+        );
+
+        await user.click(toggle);
+
+        expect(
+          screen.getByRole(
+            "button",
+            {
+              name: "Close menu",
+            }
+          )
+        ).toHaveAttribute(
+          "aria-expanded",
+          "true"
+        );
       }
     );
   }
