@@ -2,6 +2,8 @@ import type {
   CurrentSpaceWeather,
 } from "../api/astrocastApi";
 
+import DataFreshness from "./ui/DataFreshness";
+
 type SpaceWeatherCardProps = {
   data: CurrentSpaceWeather | null;
   isLoading: boolean;
@@ -14,26 +16,6 @@ function formatTimestamp(
   return new Date(
     timestamp
   ).toLocaleString();
-}
-
-function formatAge(
-  ageMinutes: number
-): string {
-  if (ageMinutes < 60) {
-    return `${ageMinutes} minutes`;
-  }
-
-  const hours = Math.floor(
-    ageMinutes / 60
-  );
-
-  const minutes = ageMinutes % 60;
-
-  if (minutes === 0) {
-    return `${hours} hours`;
-  }
-
-  return `${hours}h ${minutes}m`;
 }
 
 function SpaceWeatherCard({
@@ -82,9 +64,12 @@ function SpaceWeatherCard({
       <div className="space-weather-header">
         <h2>Space Weather</h2>
 
-        <span className="space-weather-badge">
-          {data.freshness.status}
-        </span>
+        <DataFreshness
+          status={data.freshness.status}
+          ageMinutes={
+            data.freshness.age_minutes
+          }
+        />
       </div>
 
       <p className="space-weather-kp">
@@ -106,13 +91,6 @@ function SpaceWeatherCard({
           <strong>Observed:</strong>{" "}
           {formatTimestamp(
             data.observed_at
-          )}
-        </p>
-
-        <p>
-          <strong>Data age:</strong>{" "}
-          {formatAge(
-            data.freshness.age_minutes
           )}
         </p>
 
