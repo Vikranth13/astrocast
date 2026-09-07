@@ -1,0 +1,133 @@
+.dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-7);
+}
+
+.dashboard-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(260px, 1fr)
+  );
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.dashboard-lead {
+  grid-column: span 2;
+}
+
+.dashboard-wide {
+  grid-column: 1 / -1;
+}
+
+.dashboard-card-title {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.dashboard-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.dashboard-headline {
+  color: var(--color-text);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  line-height: var(--leading-tight);
+}
+
+.dashboard-score {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.dashboard-score-value {
+  color: var(--color-text);
+  font-size: var(--text-hero);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.dashboard-score-total {
+  color: var(--color-text-muted);
+  font-size: var(--text-lg);
+}
+
+.dashboard-note {
+  color: var(--color-text-muted);
+}
+
+.dashboard-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.dashboard-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.dashboard-meter {
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-raised);
+  overflow: hidden;
+}
+
+.dashboard-meter-fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+}
+
+.mini-trend-value {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.mini-trend-number {
+  color: var(--color-text);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+}
+
+.mini-trend-unit {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.mini-trend-change {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.mini-trend-chart {
+  margin-top: var(--space-2);
+}
+
+@media (max-width: 900px) {
+  .dashboard-lead {
+    grid-column: auto;
+  }
+
+  .dashboard-score-value {
+    font-size: var(--text-3xl);
+  }
+}
