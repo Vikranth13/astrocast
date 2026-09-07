@@ -1,3 +1,12 @@
+.observe-page > h1,
+.observe-page > .page-intro {
+  text-align: center;
+}
+
+.observe-page > .page-intro {
+  margin-inline: auto;
+}
+
 .observe {
   display: flex;
   flex-direction: column;

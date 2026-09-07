@@ -156,7 +156,7 @@ function ObserveTonight() {
   }
 
   return (
-    <section className="page">
+    <section className="page observe-page">
       <h1>Observe Tonight</h1>
 
       <p className="page-intro">
