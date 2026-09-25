@@ -6,6 +6,7 @@ import {
 import AppShell from "./layout/AppShell";
 
 import About from "./pages/About";
+import AlertDetail from "./pages/AlertDetail";
 import Alerts from "./pages/Alerts";
 import Dashboard from "./pages/Dashboard";
 import Learn from "./pages/Learn";
@@ -36,6 +37,11 @@ function App() {
         <Route
           path="alerts"
           element={<Alerts />}
+        />
+
+        <Route
+          path="alerts/:alertId"
+          element={<AlertDetail />}
         />
 
         <Route

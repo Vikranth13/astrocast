@@ -1,0 +1,130 @@
+.alert-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-4);
+}
+
+.alert-filter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 180px;
+}
+
+.alert-filter label {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.alert-filter select {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: var(--text-base);
+}
+
+.alert-filters-clear {
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+}
+
+.alert-filters-clear:hover:not(:disabled) {
+  background: var(--color-surface);
+}
+
+.alerts-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.alert-count {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.alert-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.alert-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.alert-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.alert-title {
+  font-size: var(--text-xl);
+}
+
+.alert-title a {
+  color: var(--color-text-heading);
+  text-decoration: none;
+}
+
+.alert-title a:hover {
+  color: var(--color-accent-hover);
+  text-decoration: underline;
+}
+
+.alert-meta {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(180px, 1fr)
+  );
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.alert-meta dt {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.alert-meta dd {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text);
+}
+
+.back-link {
+  align-self: flex-start;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  text-decoration: none;
+}
+
+.back-link:hover {
+  color: var(--color-text);
+}
+
+.alert-detail-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+@media (max-width: 600px) {
+  .alert-filter {
+    flex: 1 1 100%;
+  }
+}

@@ -45,7 +45,7 @@ Multi-page frontend built against mock data first, so layout work does not wait 
 - [x] Night-friendly colour and typography system.
 - [x] Dashboard built on mock data.
 - [x] Move and improve the Week 1 forecast into the Observe Tonight page.
-- [ ] Space Weather and Alerts pages with severity badges and filters.
+- [x] Space Weather and Alerts pages with severity badges and filters.
 - [ ] Recharts line charts on mock time series.
 - [ ] Learn page concept cards.
 - [ ] Responsive and keyboard-navigation review.
