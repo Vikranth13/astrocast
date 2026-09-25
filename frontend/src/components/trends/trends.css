@@ -1,0 +1,79 @@
+.trends {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-7);
+}
+
+.trends-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.trend-chart {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.trend-summary {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.trend-data summary {
+  color: var(--color-accent-soft);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.trend-data-scroll {
+  max-height: 280px;
+  margin-top: var(--space-3);
+  overflow-y: auto;
+}
+
+.trend-data table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.trend-data th,
+.trend-data td {
+  padding: var(--space-1) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  text-align: right;
+}
+
+.trend-data thead th {
+  position: sticky;
+  top: 0;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.trend-data thead th:first-child {
+  text-align: left;
+}
+
+.trend-data tbody th {
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-weight: 400;
+  text-align: left;
+}
+
+.trend-data td {
+  color: var(--color-text);
+  font-family: var(--font-mono);
+}
+
+.trends-source {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}

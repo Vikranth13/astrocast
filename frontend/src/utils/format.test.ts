@@ -7,7 +7,31 @@ import {
 import {
   formatSource,
   formatUtc,
+  formatUtcDay,
 } from "./format";
+
+
+describe(
+  "formatUtcDay",
+  () => {
+    it(
+      "labels the UTC calendar day",
+      () => {
+        expect(
+          formatUtcDay(
+            "2026-09-06T21:40:00Z"
+          )
+        ).toBe("Sep 6");
+
+        expect(
+          formatUtcDay(
+            "2026-08-31T00:00:00.000Z"
+          )
+        ).toBe("Aug 31");
+      }
+    );
+  }
+);
 
 
 describe(

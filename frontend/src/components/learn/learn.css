@@ -1,0 +1,79 @@
+.learn {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-7);
+}
+
+.learn-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.concept-grid {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(280px, 1fr)
+  );
+  gap: var(--space-4);
+}
+
+.concept {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.concept-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.concept h3,
+.source-card h3,
+.limitations-card h3 {
+  font-size: var(--text-lg);
+}
+
+.concept-definition {
+  color: var(--color-text);
+}
+
+.concept-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.concept-label {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.concept-block p {
+  color: var(--color-text-muted);
+}
+
+.source-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.source-card p {
+  color: var(--color-text-muted);
+}
+
+.limitations {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 0;
+  padding-left: var(--space-5);
+  color: var(--color-text-muted);
+}
