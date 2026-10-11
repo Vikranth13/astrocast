@@ -1,25 +1,8 @@
-.trends {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-7);
-}
-
-.trends-section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
 .trend-chart {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
   margin: 0;
-}
-
-.trend-summary {
-  color: var(--color-text-muted);
-  font-size: var(--text-sm);
 }
 
 .trend-data summary {
@@ -71,9 +54,4 @@
 .trend-data td {
   color: var(--color-text);
   font-family: var(--font-mono);
-}
-
-.trends-source {
-  color: var(--color-text-muted);
-  font-size: var(--text-sm);
 }

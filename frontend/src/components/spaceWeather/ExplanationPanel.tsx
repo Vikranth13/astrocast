@@ -16,7 +16,7 @@ function ExplanationPanel({
   explanation,
 }: ExplanationPanelProps) {
   return (
-    <Card className="explanation">
+    <Card className="ui-stack">
       <p className="explanation-summary">
         {explanation.summary}
       </p>

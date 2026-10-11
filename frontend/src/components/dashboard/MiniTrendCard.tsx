@@ -20,13 +20,18 @@ type MiniTrendCardProps = {
 const CHART_HEIGHT = 72;
 
 function formatChange(
-  change: number
+  change: number,
+  decimals: number
 ): string {
-  const direction =
-    change >= 0 ? "up" : "down";
+  if (change === 0) {
+    return "unchanged over 24 hours";
+  }
 
-  return `${direction} ${Math.abs(
-    change
+  const direction =
+    change > 0 ? "up" : "down";
+
+  return `${direction} ${Math.abs(change).toFixed(
+    decimals
   )} over 24 hours`;
 }
 
@@ -35,32 +40,39 @@ function MiniTrendCard({
 }: MiniTrendCardProps) {
   return (
     <Card>
-      <div className="dashboard-card-body">
-        <span className="dashboard-card-title">
+      <div className="ui-stack">
+        <span className="ui-eyebrow">
           {trend.metric}
         </span>
 
         <div className="mini-trend-value">
-          <span className="mini-trend-number">
-            {trend.current}
+          <span className="ui-headline">
+            {trend.current.toFixed(trend.decimals)}
           </span>
 
-          <span className="mini-trend-unit">
+          <span className="ui-caption">
             {trend.unit}
           </span>
         </div>
 
-        <span className="mini-trend-change">
-          {formatChange(trend.change)}
+        <span className="ui-caption">
+          {formatChange(
+            trend.change,
+            trend.decimals
+          )}
         </span>
 
-        <div className="mini-trend-chart">
+        <div
+          className="mini-trend-chart"
+          aria-hidden="true"
+        >
           <ResponsiveContainer
             width="100%"
             height={CHART_HEIGHT}
           >
             <LineChart
               data={trend.points}
+              accessibilityLayer={false}
               margin={{
                 top: 4,
                 right: 4,
@@ -82,6 +94,7 @@ function MiniTrendCard({
                 stroke="var(--color-accent)"
                 strokeWidth={2}
                 dot={false}
+                connectNulls={false}
                 isAnimationActive={false}
               />
             </LineChart>

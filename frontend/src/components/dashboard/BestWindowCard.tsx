@@ -4,8 +4,6 @@ import type {
   BestWindow,
 } from "../../data/mockDashboard";
 
-import "./dashboard.css";
-
 type BestWindowCardProps = {
   bestWindow: BestWindow;
 };
@@ -15,20 +13,20 @@ function BestWindowCard({
 }: BestWindowCardProps) {
   return (
     <Card>
-      <div className="dashboard-card-body">
-        <span className="dashboard-card-title">
+      <div className="ui-stack">
+        <span className="ui-eyebrow">
           Best window
         </span>
 
-        <span className="dashboard-headline">
+        <span className="ui-headline">
           {bestWindow.startsAt} - {bestWindow.endsAt}
         </span>
 
-        <p className="dashboard-note">
+        <p className="ui-muted">
           {bestWindow.quality}
         </p>
 
-        <p className="dashboard-note">
+        <p className="ui-muted">
           {bestWindow.note}
         </p>
       </div>

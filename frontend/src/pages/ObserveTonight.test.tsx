@@ -285,5 +285,26 @@ describe(
         }
       }
     );
+
+
+    it(
+      "labels the city search for screen readers",
+      async () => {
+        render(<ObserveTonight />);
+
+        await screen.findByText(
+          "Kp 1.67"
+        );
+
+        expect(
+          screen.getByRole(
+            "textbox",
+            {
+              name: "City",
+            }
+          )
+        ).toBeInTheDocument();
+      }
+    );
   }
 );

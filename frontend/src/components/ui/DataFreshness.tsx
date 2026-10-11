@@ -43,7 +43,7 @@ function DataFreshness({
         tone={toneForFreshness(status)}
       />
 
-      <span className="ui-freshness-age">
+      <span className="ui-footnote">
         {formatAge(ageMinutes)} old
       </span>
     </span>

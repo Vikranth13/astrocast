@@ -7,18 +7,6 @@
   margin-inline: auto;
 }
 
-.observe {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-7);
-}
-
-.observe-section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
 .observe-search {
   display: flex;
   gap: var(--space-3);
@@ -27,67 +15,39 @@
   margin: 0 auto;
 }
 
-.observe-grid {
-  display: grid;
-  grid-template-columns: repeat(
-    auto-fit,
-    minmax(220px, 1fr)
-  );
-  gap: var(--space-4);
-  align-items: start;
-}
-
-.observe-card-title {
-  color: var(--color-text-muted);
-  font-size: var(--text-sm);
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-
-.observe-summary {
-  grid-column: 1 / -1;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-.observe-score {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-3);
-}
-
-.observe-score-value {
-  color: var(--color-text);
-  font-size: var(--text-hero);
-  font-weight: 700;
-  line-height: 1;
-}
-
-.observe-score-empty {
-  color: var(--color-text-muted);
-  font-size: var(--text-3xl);
-}
-
-.observe-score-total {
-  color: var(--color-text-muted);
-  font-size: var(--text-lg);
-}
-
-.observe-score-rating {
-  color: var(--color-text);
-  font-size: var(--text-2xl);
-  font-weight: 700;
-}
-
-.observe-note {
-  color: var(--color-text-muted);
+/* A text input has an intrinsic minimum width. Without this, on the
+   narrowest phones it pushes the Check Sky button off the screen. */
+.observe-search input {
+  min-width: 0;
 }
 
 .observe-location {
   display: grid;
   gap: var(--space-2);
   text-align: center;
+}
+
+.score-readout {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.score-readout-value {
+  color: var(--color-text);
+  font-size: var(--text-hero);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.score-readout-empty {
+  color: var(--color-text-muted);
+  font-size: var(--text-3xl);
+}
+
+.score-readout-total {
+  color: var(--color-text-muted);
+  font-size: var(--text-lg);
 }
 
 .hourly-scroll {
@@ -132,15 +92,6 @@
 
 .hourly-meter {
   width: 64px;
-  height: 6px;
-  border-radius: var(--radius-pill);
-  background: var(--color-surface-raised);
-  overflow: hidden;
-}
-
-.hourly-meter-fill {
-  height: 100%;
-  background: var(--color-accent);
 }
 
 .breakdown {
@@ -155,14 +106,6 @@
   gap: var(--space-2);
 }
 
-.breakdown-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-}
-
 .breakdown-name {
   display: flex;
   align-items: center;
@@ -171,25 +114,8 @@
   font-weight: 600;
 }
 
-.breakdown-value {
-  color: var(--color-text-muted);
-  font-size: var(--text-sm);
-}
-
-.breakdown-meter {
-  height: 6px;
-  border-radius: var(--radius-pill);
-  background: var(--color-surface-raised);
-  overflow: hidden;
-}
-
-.breakdown-meter-fill {
-  height: 100%;
-  border-radius: var(--radius-pill);
-  background: var(--tone-caution-text);
-}
-
-.breakdown-note {
-  color: var(--color-text-muted);
-  font-size: var(--text-sm);
+@media (max-width: 900px) {
+  .score-readout-value {
+    font-size: var(--text-3xl);
+  }
 }

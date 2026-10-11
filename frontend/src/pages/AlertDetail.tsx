@@ -3,6 +3,8 @@ import {
   useParams,
 } from "react-router";
 
+import AlertBadges from "../components/alerts/AlertBadges";
+
 import {
   ALERT_STATUS_LABELS,
   ALERT_TYPE_LABELS,
@@ -13,13 +15,7 @@ import ExplanationPanel from "../components/spaceWeather/ExplanationPanel";
 
 import Card from "../components/ui/Card";
 import EmptyState from "../components/ui/EmptyState";
-import SectionHeader from "../components/ui/SectionHeader";
-import SeverityBadge from "../components/ui/SeverityBadge";
-
-import {
-  toneForAlertStatus,
-  toneForNoaaScale,
-} from "../components/ui/severity";
+import PageSection from "../components/ui/PageSection";
 
 import {
   MOCK_ALERTS,
@@ -74,48 +70,24 @@ function AlertDetail() {
     <section className="page">
       <BackToAlerts />
 
-      <div className="alert-badges">
-        <SeverityBadge
-          label={
-            ALERT_TYPE_LABELS[alert.alert_type]
-          }
-        />
-
-        {alert.severity && (
-          <SeverityBadge
-            label={alert.severity}
-            tone={toneForNoaaScale(
-              alert.severity
-            )}
-          />
-        )}
-
-        <SeverityBadge
-          label={
-            ALERT_STATUS_LABELS[alert.status]
-          }
-          tone={toneForAlertStatus(
-            alert.status
-          )}
-        />
-      </div>
+      <AlertBadges alert={alert} />
 
       <h1>{alert.summary}</h1>
 
       <Card>
         <dl className="alert-meta">
           <div>
-            <dt>Source</dt>
+            <dt className="ui-label">Source</dt>
             <dd>{formatSource(alert.source)}</dd>
           </div>
 
           <div>
-            <dt>Type</dt>
+            <dt className="ui-label">Type</dt>
             <dd>{ALERT_TYPE_LABELS[alert.alert_type]}</dd>
           </div>
 
           <div>
-            <dt>Severity</dt>
+            <dt className="ui-label">Severity</dt>
             <dd>
               {alert.severity
                 ? `${alert.severity}, ${family}`
@@ -124,7 +96,7 @@ function AlertDetail() {
           </div>
 
           <div>
-            <dt>Status</dt>
+            <dt className="ui-label">Status</dt>
             <dd>
               {alert.status === "unknown"
                 ? "Unknown"
@@ -133,12 +105,12 @@ function AlertDetail() {
           </div>
 
           <div>
-            <dt>Issued</dt>
+            <dt className="ui-label">Issued</dt>
             <dd>{formatUtc(alert.issued_at)}</dd>
           </div>
 
           <div>
-            <dt>Expires</dt>
+            <dt className="ui-label">Expires</dt>
             <dd>
               {alert.expires_at
                 ? formatUtc(alert.expires_at)
@@ -147,26 +119,24 @@ function AlertDetail() {
           </div>
 
           <div>
-            <dt>NOAA product</dt>
+            <dt className="ui-label">NOAA product</dt>
             <dd>{alert.external_id ?? "Not given"}</dd>
           </div>
 
           <div>
-            <dt>Stored</dt>
+            <dt className="ui-label">Stored</dt>
             <dd>{formatUtc(alert.ingested_at)}</dd>
           </div>
         </dl>
       </Card>
 
-      <section className="alert-detail-section">
-        <SectionHeader
-          title="What this means"
-        />
-
+      <PageSection
+        title="What this means"
+      >
         <ExplanationPanel
           explanation={alert.explanation}
         />
-      </section>
+      </PageSection>
     </section>
   );
 }

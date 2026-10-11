@@ -4,8 +4,6 @@ import type {
   RecommendedTarget,
 } from "../../data/mockDashboard";
 
-import "./dashboard.css";
-
 type RecommendedTargetCardProps = {
   target: RecommendedTarget;
 };
@@ -15,17 +13,17 @@ function RecommendedTargetCard({
 }: RecommendedTargetCardProps) {
   return (
     <Card>
-      <div className="dashboard-card-body">
-        <span className="dashboard-card-title">
+      <div className="ui-stack">
+        <span className="ui-eyebrow">
           Recommended target
         </span>
 
-        <span className="dashboard-headline">
+        <span className="ui-headline">
           {target.name}
         </span>
 
-        <div className="dashboard-row">
-          <span className="dashboard-note">
+        <div className="ui-row">
+          <span className="ui-muted">
             {target.kind}
           </span>
 
@@ -35,7 +33,7 @@ function RecommendedTargetCard({
           </span>
         </div>
 
-        <p className="dashboard-note">
+        <p className="ui-muted">
           {target.reason}
         </p>
       </div>

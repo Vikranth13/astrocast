@@ -39,9 +39,11 @@ function ConceptCard({
 }: ConceptCardProps) {
   return (
     <Card>
-      <article className="concept">
+      <article className="ui-stack">
         <div className="concept-header">
-          <h3>{concept.name}</h3>
+          <h3 className="ui-card-title">
+            {concept.name}
+          </h3>
 
           <SeverityBadge
             label={STATUS_LABELS[concept.status]}
@@ -49,24 +51,26 @@ function ConceptCard({
           />
         </div>
 
-        <p className="concept-definition">
-          {concept.definition}
-        </p>
+        <p>{concept.definition}</p>
 
         <div className="concept-block">
-          <span className="concept-label">
+          <span className="ui-label">
             Why it matters
           </span>
 
-          <p>{concept.whyItMatters}</p>
+          <p className="ui-muted">
+            {concept.whyItMatters}
+          </p>
         </div>
 
         <div className="concept-block">
-          <span className="concept-label">
+          <span className="ui-label">
             In AstroCast
           </span>
 
-          <p>{concept.inAstroCast}</p>
+          <p className="ui-muted">
+            {concept.inAstroCast}
+          </p>
         </div>
       </article>
     </Card>

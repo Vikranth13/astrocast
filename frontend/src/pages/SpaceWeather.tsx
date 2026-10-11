@@ -4,7 +4,7 @@ import RiskAssessmentCard from "../components/spaceWeather/RiskAssessmentCard";
 import Card from "../components/ui/Card";
 import DataFreshness from "../components/ui/DataFreshness";
 import MetricCard from "../components/ui/MetricCard";
-import SectionHeader from "../components/ui/SectionHeader";
+import PageSection from "../components/ui/PageSection";
 import SeverityBadge from "../components/ui/SeverityBadge";
 
 import {
@@ -21,8 +21,6 @@ import {
   formatUtc,
 } from "../utils/format";
 
-import "../components/spaceWeather/spaceWeather.css";
-
 function SpaceWeather() {
   const conditions = MOCK_CURRENT_CONDITIONS;
   const rawValues = MOCK_RISK.raw_values;
@@ -37,41 +35,41 @@ function SpaceWeather() {
         measurements the interpretation is based on.
       </p>
 
-      <div className="space-weather-page">
-        <section className="space-weather-section">
-          <SectionHeader
-            title="Current conditions"
-            description="Global geomagnetic activity, not a local aurora forecast."
-            action={
-              <DataFreshness
-                status={conditions.freshness.status}
-                ageMinutes={
-                  conditions.freshness.age_minutes
-                }
-              />
-            }
-          />
+      <div className="page-sections">
+        <PageSection
+          title="Current conditions"
+          description="Global geomagnetic activity, not a local aurora forecast."
+          action={
+            <DataFreshness
+              status={conditions.freshness.status}
+              ageMinutes={
+                conditions.freshness.age_minutes
+              }
+            />
+          }
+        >
+          <div className="ui-grid ui-grid-compact">
+            <Card className="ui-span-all">
+              <div className="ui-stack">
+                <span className="ui-eyebrow">
+                  Geomagnetic activity
+                </span>
 
-          <div className="condition-grid">
-            <Card className="condition-activity">
-              <span className="condition-label">
-                Geomagnetic activity
-              </span>
+                <span className="ui-headline">
+                  {activity.label}
+                </span>
 
-              <span className="condition-headline">
-                {activity.label}
-              </span>
-
-              <div className="condition-badges">
-                <SeverityBadge
-                  label={
-                    activity.noaa_scale
-                      ?? "Below G1"
-                  }
-                  tone={toneForNoaaScale(
-                    activity.noaa_scale
-                  )}
-                />
+                <div className="ui-badge-row">
+                  <SeverityBadge
+                    label={
+                      activity.noaa_scale
+                        ?? "Below G1"
+                    }
+                    tone={toneForNoaaScale(
+                      activity.noaa_scale
+                    )}
+                  />
+                </div>
               </div>
             </Card>
 
@@ -107,32 +105,28 @@ function SpaceWeather() {
               unit="per cm³"
             />
           </div>
-        </section>
+        </PageSection>
 
-        <section className="space-weather-section">
-          <SectionHeader
-            title="Risk assessment"
-            description="How AstroCast's rules read these measurements, and which rule fired."
-          />
-
+        <PageSection
+          title="Risk assessment"
+          description="How AstroCast's rules read these measurements, and which rule fired."
+        >
           <RiskAssessmentCard
             assessment={MOCK_RISK}
           />
-        </section>
+        </PageSection>
 
-        <section className="space-weather-section">
-          <SectionHeader
-            title="What this means"
-          />
-
+        <PageSection
+          title="What this means"
+        >
           <ExplanationPanel
             explanation={
               conditions.explanation_detail
             }
           />
-        </section>
+        </PageSection>
 
-        <p className="space-weather-source">
+        <p className="ui-caption">
           Source: {formatSource(conditions.source)}.
           Stored observations from the latest ingestion,
           not a live feed.

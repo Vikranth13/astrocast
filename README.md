@@ -62,11 +62,17 @@ AstroCast reads the newest stored Planetary K-index measurement and returns:
 - Contributing station count
 - Plain-English explanation
 
-The React frontend displays this information in a global Space Weather card that loads automatically when the page opens.
+The Observe Tonight page shows this live in a Space Weather card that loads when the page opens.
 
 ### Astronomy Content
 
 The backend also includes an endpoint for NASA Astronomy Picture of the Day data.
+
+### Multi-Page Frontend
+
+The React frontend has a Dashboard, Observe Tonight, Space Weather, Alerts with an alert detail view, Trends, Learn, and About, sharing one design system and a responsive layout with desktop and mobile navigation.
+
+Observe Tonight calls the backend live. The other pages are built against sample data shaped exactly like the API responses, and are connected to the live endpoints in Week 5. Routes, structure, and screenshots are in [docs/week-4-ui-structure.md](docs/week-4-ui-structure.md).
 
 NASA APOD may return an upstream error when using NASA's shared `DEMO_KEY`. This does not block the local forecast or NOAA space-weather features.
 
@@ -108,12 +114,13 @@ The backend test suite covers:
 
 The frontend test suite covers:
 
-- Space-weather loading state
-- Space-weather error state
-- Space-weather success state
-- Automatic NOAA loading
-- City forecast interaction
-- Preservation of space-weather data after a failed city search
+- Routing, navigation, and the small-screen menu, including Escape and focus handling after navigation
+- City forecast interaction, and preservation of space-weather data after a failed city search
+- Space-weather loading, error, and success states
+- Shared components, severity tone mapping, and UTC timestamp formatting
+- Alert filtering, including filters read from the URL and values the backend would reject
+- Chart summaries, missing readings, and chart data tables
+- The sections and key content of every page
 
 ## System Architecture
 
@@ -213,7 +220,7 @@ Update fetch log with final result
 ### Current Space-Weather Flow
 
 ```text
-React page loads
+Observe Tonight page loads
     |
     v
 GET /api/space-weather/current
@@ -330,6 +337,7 @@ astrocast/
 |   |   |-- test_noaa_ingestion_counters.py
 |   |   |-- test_noaa_kp_parser.py
 |   |   |-- test_noaa_solar_wind_parser.py
+|   |   |-- test_scoring_service.py
 |   |   |-- test_space_weather_risk_service.py
 |   |   `-- test_space_weather_service.py
 |   |-- alembic.ini
@@ -351,21 +359,40 @@ astrocast/
 |   |-- noaa-ingestion.md
 |   |-- noaa-kp-source.md
 |   |-- project-brief.md
+|   |-- screenshots/
+|   |   `-- week-4/
 |   |-- testing.md
+|   |-- ui-components.md
 |   |-- week-1-baseline.md
-|   `-- week-2-report.md
+|   |-- week-2-report.md
+|   |-- week-3-api-architecture.md
+|   |-- week-3-handoff.md
+|   |-- week-3-report.md
+|   `-- week-4-ui-structure.md
 |-- frontend/
 |   |-- src/
 |   |   |-- api/
 |   |   |   `-- astrocastApi.ts
 |   |   |-- components/
-|   |   |   |-- SpaceWeatherCard.test.tsx
+|   |   |   |-- ui/
+|   |   |   |-- alerts/
+|   |   |   |-- dashboard/
+|   |   |   |-- learn/
+|   |   |   |-- observe/
+|   |   |   |-- spaceWeather/
+|   |   |   |-- trends/
+|   |   |   |-- PageState.tsx
 |   |   |   `-- SpaceWeatherCard.tsx
+|   |   |-- data/
+|   |   |-- layout/
+|   |   |-- pages/
 |   |   |-- test/
 |   |   |   `-- setup.ts
+|   |   |-- utils/
 |   |   |-- App.css
 |   |   |-- App.test.tsx
 |   |   |-- App.tsx
+|   |   |-- index.css
 |   |   `-- main.tsx
 |   |-- package.json
 |   |-- package-lock.json
@@ -815,6 +842,11 @@ Completed functionality includes:
 - Bounded retries with exponential backoff for transient NOAA failures
 - Backend automated tests
 - Frontend component and workflow tests
+- Multi-page React frontend with client-side routing
+- Shared design system: tokens, reusable components, and layout classes
+- Dashboard, Space Weather, Alerts, Trends, and Learn pages built on API-shaped sample data
+- Trend charts with text summaries and data tables
+- Responsive layout and keyboard-accessible navigation
 
 ## Known Limitations
 
@@ -828,7 +860,9 @@ Completed functionality includes:
 - The `locations` table exists but city searches are not yet persisted.
 - NASA APOD may fail when using the shared `DEMO_KEY`.
 - The frontend API base URL is currently configured for local development.
-- The frontend consumes only `/api/space-weather/current`; trends, alerts, and risk are available but not yet displayed.
+- Only Observe Tonight calls the backend. The Dashboard, Space Weather, Alerts, and Trends pages show sample data shaped like the API responses until the Week 5 integration.
+- The backend fetches an hourly forecast and computes per-factor score penalties but does not return them yet, so the Observe Tonight hourly table and score breakdown use sample data.
+- The About page is a placeholder.
 - `backend/requirements.txt` is a full environment freeze rather than a runtime dependency list. Scheduled for Week 8.
 - Historical alert rows backfilled by migration `0dc8d08221c3` inherit the earlier counter overstatement and can read slightly high.
 - Deployment and continuous integration are not yet configured.

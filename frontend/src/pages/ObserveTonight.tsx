@@ -14,12 +14,14 @@ import SpaceWeatherCard from "../components/SpaceWeatherCard";
 
 import HourlyConditionsTable from "../components/observe/HourlyConditionsTable";
 import ScoreBreakdown from "../components/observe/ScoreBreakdown";
+import ScoreReadout from "../components/observe/ScoreReadout";
 
 import Card from "../components/ui/Card";
 import EmptyState from "../components/ui/EmptyState";
 import ErrorState from "../components/ui/ErrorState";
+import Meter from "../components/ui/Meter";
 import MetricCard from "../components/ui/MetricCard";
-import SectionHeader from "../components/ui/SectionHeader";
+import PageSection from "../components/ui/PageSection";
 
 import {
   MOCK_OBSERVE_TONIGHT,
@@ -164,10 +166,18 @@ function ObserveTonight() {
         working for and against you tonight.
       </p>
 
-      <div className="observe">
-        <section className="observe-section">
+      <div className="page-sections">
+        <div className="ui-stack">
           <div className="observe-search">
+            <label
+              htmlFor="city-search"
+              className="visually-hidden"
+            >
+              City
+            </label>
+
             <input
+              id="city-search"
               type="text"
               placeholder="Enter city name..."
               value={city}
@@ -197,48 +207,43 @@ function ObserveTonight() {
               message={errorMessage}
             />
           )}
-        </section>
+        </div>
 
-        <section className="observe-section">
-          <SectionHeader
-            title="Tonight's forecast"
-            description="Live conditions for the city you search."
-          />
-
-          <div className="observe-grid">
-            <Card className="observe-summary">
-              <div className="observe-score">
-                <span
-                  className={
+        <PageSection
+          title="Tonight's forecast"
+          description="Live conditions for the city you search."
+        >
+          <div className="ui-grid ui-grid-compact">
+            <Card className="ui-span-all">
+              <div className="ui-stack">
+                <ScoreReadout
+                  score={
                     forecast
-                      ? "observe-score-value"
-                      : "observe-score-value observe-score-empty"
+                      ? forecast.stargazing.score
+                      : null
                   }
-                >
-                  {forecast
-                    ? forecast.stargazing.score
-                    : "—"}
-                </span>
+                  rating={
+                    forecast?.stargazing.rating
+                  }
+                />
 
-                <span className="observe-score-total">
-                  / 100
-                </span>
+                {forecast && (
+                  <Meter
+                    percent={
+                      forecast.stargazing.score
+                    }
+                  />
+                )}
 
-                <span className="observe-score-rating">
+                <p className="ui-muted">
                   {forecast
-                    ? forecast.stargazing.rating
-                    : ""}
-                </span>
+                    ? forecast.stargazing.explanation
+                    : (
+                      "Enter a city to see whether tonight "
+                      + "is a good night for observing the sky."
+                    )}
+                </p>
               </div>
-
-              <p className="observe-note">
-                {forecast
-                  ? forecast.stargazing.explanation
-                  : (
-                    "Enter a city to see whether tonight "
-                    + "is a good night for observing the sky."
-                  )}
-              </p>
             </Card>
 
             <MetricCard
@@ -290,7 +295,7 @@ function ObserveTonight() {
           {forecast && (
             <Card>
               <div className="observe-location">
-                <span className="observe-card-title">
+                <span className="ui-eyebrow">
                   Location
                 </span>
 
@@ -302,25 +307,23 @@ function ObserveTonight() {
                     : ""}
                 </p>
 
-                <p className="observe-note">
+                <p className="ui-muted">
                   {forecast.location.country}
                 </p>
 
-                <p className="observe-note">
+                <p className="ui-muted">
                   Forecast time:{" "}
                   {forecast.forecast_time}
                 </p>
               </div>
             </Card>
           )}
-        </section>
+        </PageSection>
 
-        <section className="observe-section">
-          <SectionHeader
-            title="Space weather"
-            description="Global geomagnetic activity from stored NOAA data."
-          />
-
+        <PageSection
+          title="Space weather"
+          description="Global geomagnetic activity from stored NOAA data."
+        >
           <SpaceWeatherCard
             data={spaceWeather}
             isLoading={
@@ -330,58 +333,54 @@ function ObserveTonight() {
               spaceWeatherError
             }
           />
-        </section>
+        </PageSection>
 
-        <section className="observe-section">
-          <SectionHeader
-            title="Hourly conditions"
-            description="A sample night. The backend already fetches hourly weather but does not expose it yet, so this is wired up in Week 5."
-          />
-
+        <PageSection
+          title="Hourly conditions"
+          description="A sample night. The backend already fetches hourly weather but does not expose it yet, so this is wired up in Week 5."
+        >
           <HourlyConditionsTable
             hours={MOCK_OBSERVE_TONIGHT.hours}
           />
-        </section>
+        </PageSection>
 
-        <section className="observe-section">
-          <SectionHeader
-            title="Score breakdown"
-            description="How each factor moves the score, using the thresholds the scoring service already applies. Sample values until Week 5."
-          />
-
+        <PageSection
+          title="Score breakdown"
+          description="How each factor moves the score, using the thresholds the scoring service already applies. Sample values until Week 5."
+        >
           <ScoreBreakdown
             factors={
               MOCK_OBSERVE_TONIGHT.factors
             }
           />
-        </section>
+        </PageSection>
 
-        <section className="observe-section">
-          <SectionHeader
-            title="Not built yet"
-            description="Astronomy intelligence is Week 6."
-          />
-
-          <div className="observe-grid">
+        <PageSection
+          title="Not built yet"
+          description="Astronomy intelligence is Week 6."
+        >
+          <div className="ui-grid">
             {WEEK_SIX_PLACEHOLDERS.map(
               (placeholder) => (
                 <Card
                   key={placeholder.title}
                 >
-                  <span className="observe-card-title">
-                    {placeholder.title}
-                  </span>
+                  <div className="ui-stack">
+                    <span className="ui-eyebrow">
+                      {placeholder.title}
+                    </span>
 
-                  <EmptyState
-                    message={
-                      placeholder.message
-                    }
-                  />
+                    <EmptyState
+                      message={
+                        placeholder.message
+                      }
+                    />
+                  </div>
                 </Card>
               )
             )}
           </div>
-        </section>
+        </PageSection>
       </div>
     </section>
   );

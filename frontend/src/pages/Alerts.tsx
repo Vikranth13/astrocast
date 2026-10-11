@@ -13,7 +13,7 @@ import {
 } from "../components/alerts/alertFiltering";
 
 import EmptyState from "../components/ui/EmptyState";
-import SectionHeader from "../components/ui/SectionHeader";
+import PageSection from "../components/ui/PageSection";
 
 import {
   MOCK_ALERTS,
@@ -78,14 +78,12 @@ function Alerts() {
         onClear={handleClearFilters}
       />
 
-      <section className="alerts-section">
-        <SectionHeader
-          title="NOAA notifications"
-          description="Newest first. Status is judged against the stored expiry time."
-        />
-
+      <PageSection
+        title="NOAA notifications"
+        description="Newest first. Status is judged against the stored expiry time."
+      >
         <p
-          className="alert-count"
+          className="ui-caption"
           aria-live="polite"
         >
           Showing {visibleAlerts.length} of{" "}
@@ -109,7 +107,7 @@ function Alerts() {
             ))}
           </ul>
         )}
-      </section>
+      </PageSection>
     </section>
   );
 }

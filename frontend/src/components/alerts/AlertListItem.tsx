@@ -2,18 +2,9 @@ import {
   Link,
 } from "react-router";
 
+import AlertBadges from "./AlertBadges";
+
 import Card from "../ui/Card";
-import SeverityBadge from "../ui/SeverityBadge";
-
-import {
-  toneForAlertStatus,
-  toneForNoaaScale,
-} from "../ui/severity";
-
-import {
-  ALERT_STATUS_LABELS,
-  ALERT_TYPE_LABELS,
-} from "./alertFiltering";
 
 import type {
   SpaceWeatherAlert,
@@ -35,42 +26,21 @@ function AlertListItem({
 }: AlertListItemProps) {
   return (
     <li>
-      <Card className="alert-item">
-        <div className="alert-badges">
-          <SeverityBadge
-            label={
-              ALERT_TYPE_LABELS[alert.alert_type]
-            }
-          />
+      <Card className="ui-stack">
+        <AlertBadges alert={alert} />
 
-          {alert.severity && (
-            <SeverityBadge
-              label={alert.severity}
-              tone={toneForNoaaScale(
-                alert.severity
-              )}
-            />
-          )}
-
-          <SeverityBadge
-            label={
-              ALERT_STATUS_LABELS[alert.status]
-            }
-            tone={toneForAlertStatus(
-              alert.status
-            )}
-          />
-        </div>
-
-        <h3 className="alert-title">
-          <Link to={`/alerts/${alert.id}`}>
+        <h3 className="ui-card-title">
+          <Link
+            className="ui-title-link"
+            to={`/alerts/${alert.id}`}
+          >
             {alert.summary}
           </Link>
         </h3>
 
         <dl className="alert-meta">
           <div>
-            <dt>Issued</dt>
+            <dt className="ui-label">Issued</dt>
 
             <dd>
               {formatUtc(alert.issued_at)}
@@ -78,7 +48,7 @@ function AlertListItem({
           </div>
 
           <div>
-            <dt>Expires</dt>
+            <dt className="ui-label">Expires</dt>
 
             <dd>
               {alert.expires_at
@@ -88,7 +58,7 @@ function AlertListItem({
           </div>
 
           <div>
-            <dt>Source</dt>
+            <dt className="ui-label">Source</dt>
 
             <dd>
               {formatSource(alert.source)}

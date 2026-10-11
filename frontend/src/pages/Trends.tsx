@@ -1,7 +1,7 @@
 import TrendLineChart from "../components/trends/TrendLineChart";
 
 import Card from "../components/ui/Card";
-import SectionHeader from "../components/ui/SectionHeader";
+import PageSection from "../components/ui/PageSection";
 
 import {
   MOCK_KP_TREND,
@@ -11,8 +11,6 @@ import {
 import {
   formatSource,
 } from "../utils/format";
-
-import "../components/trends/trends.css";
 
 // These mirror the thresholds in
 // backend/services/space_weather_risk_service.py, so the lines on the
@@ -55,13 +53,11 @@ function Trends() {
         the past week.
       </p>
 
-      <div className="trends">
-        <section className="trends-section">
-          <SectionHeader
-            title="Planetary K-index"
-            description="The three-hour global geomagnetic index, from 0 to 9. From 4.67 upward, NOAA classes it as a G1 storm."
-          />
-
+      <div className="page-sections">
+        <PageSection
+          title="Planetary K-index"
+          description="The three-hour global geomagnetic index, from 0 to 9. From 4.67 upward, NOAA classes it as a G1 storm."
+        >
           <Card>
             <TrendLineChart
               title="Planetary K-index"
@@ -79,14 +75,12 @@ function Trends() {
               formatValue={formatKp}
             />
           </Card>
-        </section>
+        </PageSection>
 
-        <section className="trends-section">
-          <SectionHeader
-            title="Solar wind speed"
-            description="Measured upstream of Earth by the DSCOVR spacecraft. AstroCast treats 500 km/s and above as elevated."
-          />
-
+        <PageSection
+          title="Solar wind speed"
+          description="Measured upstream of Earth by the DSCOVR spacecraft. AstroCast treats 500 km/s and above as elevated."
+        >
           <Card>
             <TrendLineChart
               title="Solar wind speed"
@@ -100,14 +94,12 @@ function Trends() {
               ]}
             />
           </Card>
-        </section>
+        </PageSection>
 
-        <section className="trends-section">
-          <SectionHeader
-            title="Solar wind density"
-            description="Protons per cubic centimetre in the solar wind. AstroCast treats 10 and above as elevated."
-          />
-
+        <PageSection
+          title="Solar wind density"
+          description="Protons per cubic centimetre in the solar wind. AstroCast treats 10 and above as elevated."
+        >
           <Card>
             <TrendLineChart
               title="Solar wind density"
@@ -121,9 +113,9 @@ function Trends() {
               ]}
             />
           </Card>
-        </section>
+        </PageSection>
 
-        <p className="trends-source">
+        <p className="ui-caption">
           Source: {formatSource(MOCK_KP_TREND.source)}.
           Stored observations from past ingestions, with times in
           UTC. A gap in a line means no measurement was stored for

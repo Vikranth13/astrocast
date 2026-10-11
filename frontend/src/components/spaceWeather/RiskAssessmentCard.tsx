@@ -37,8 +37,8 @@ function RiskAssessmentCard({
 
   return (
     <Card>
-      <div className="risk-header">
-        <span className="condition-label">
+      <div className="ui-row">
+        <span className="ui-eyebrow">
           AstroCast risk level
         </span>
 
@@ -57,7 +57,7 @@ function RiskAssessmentCard({
               className="risk-factor"
               key={factor.rule_id}
             >
-              <div className="risk-factor-head">
+              <div className="ui-row">
                 <span className="risk-factor-name">
                   {FACTOR_LABELS[factor.factor]
                     ?? factor.factor}
@@ -70,7 +70,7 @@ function RiskAssessmentCard({
                 </span>
               </div>
 
-              <p className="risk-factor-description">
+              <p className="ui-muted">
                 {factor.description}
               </p>
 
@@ -82,7 +82,7 @@ function RiskAssessmentCard({
         )}
       </ul>
 
-      <p className="risk-footnote">
+      <p className="ui-caption risk-footnote">
         Assessed {formatUtc(assessment.assessed_at)}{" "}
         from {formatSource(assessment.source)} data
         by deterministic rules, not a forecast model.

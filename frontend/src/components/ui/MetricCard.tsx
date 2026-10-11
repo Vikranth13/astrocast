@@ -22,11 +22,11 @@ function MetricCard({
 
   return (
     <Card className="ui-metric-card">
-      <span className="ui-metric-label">
+      <span className="ui-caption">
         {label}
       </span>
 
-      <span className="ui-metric-value">
+      <span className="ui-headline">
         <span className="ui-metric-number">
           {hasValue ? value : MISSING_VALUE}
         </span>
@@ -39,7 +39,7 @@ function MetricCard({
       </span>
 
       {footnote && (
-        <span className="ui-metric-footnote">
+        <span className="ui-footnote">
           {footnote}
         </span>
       )}

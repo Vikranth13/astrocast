@@ -36,7 +36,10 @@ function AlertFilters({
       aria-label="Filter alerts"
     >
       <div className="alert-filter">
-        <label htmlFor="alert-filter-severity">
+        <label
+          htmlFor="alert-filter-severity"
+          className="ui-caption"
+        >
           Severity
         </label>
 
@@ -75,7 +78,10 @@ function AlertFilters({
       </div>
 
       <div className="alert-filter">
-        <label htmlFor="alert-filter-type">
+        <label
+          htmlFor="alert-filter-type"
+          className="ui-caption"
+        >
           Type
         </label>
 
@@ -103,7 +109,10 @@ function AlertFilters({
       </div>
 
       <div className="alert-filter">
-        <label htmlFor="alert-filter-status">
+        <label
+          htmlFor="alert-filter-status"
+          className="ui-caption"
+        >
           Status
         </label>
 
@@ -133,7 +142,7 @@ function AlertFilters({
       {hasActiveFilters(filters) && (
         <button
           type="button"
-          className="alert-filters-clear"
+          className="ui-button-secondary"
           onClick={onClear}
         >
           Clear filters

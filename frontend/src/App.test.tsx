@@ -14,6 +14,7 @@ import {
   describe,
   expect,
   it,
+  vi,
 } from "vitest";
 
 import App from "./App";
@@ -165,6 +166,97 @@ describe(
           "aria-expanded",
           "true"
         );
+      }
+    );
+
+
+    it(
+      "closes the small-screen menu with Escape and returns focus",
+      async () => {
+        const user = userEvent.setup();
+
+        renderAt("/");
+
+        await user.click(
+          screen.getByRole(
+            "button",
+            {
+              name: "Open menu",
+            }
+          )
+        );
+
+        await user.keyboard("{Escape}");
+
+        const toggle = screen.getByRole(
+          "button",
+          {
+            name: "Open menu",
+          }
+        );
+
+        expect(toggle).toHaveAttribute(
+          "aria-expanded",
+          "false"
+        );
+
+        expect(toggle).toHaveFocus();
+      }
+    );
+
+
+    it(
+      "starts each new page at the top with focus on its content",
+      async () => {
+        const user = userEvent.setup();
+
+        const scrollTo = vi.spyOn(
+          window,
+          "scrollTo"
+        );
+
+        // jsdom does not scroll on focus, so assert the option that
+        // stops a real browser scrolling <main> under the header.
+        const focus = vi.spyOn(
+          HTMLElement.prototype,
+          "focus"
+        );
+
+        renderAt("/");
+
+        expect(scrollTo).not.toHaveBeenCalled();
+
+        await user.click(
+          within(getPrimaryNav()).getByRole(
+            "link",
+            {
+              name: "Learn",
+            }
+          )
+        );
+
+        await screen.findByRole(
+          "heading",
+          {
+            level: 1,
+            name: "Learn",
+          }
+        );
+
+        expect(scrollTo).toHaveBeenCalledWith(
+          0,
+          0
+        );
+
+        expect(
+          screen.getByRole("main")
+        ).toHaveFocus();
+
+        expect(focus).toHaveBeenCalledWith({
+          preventScroll: true,
+        });
+
+        focus.mockRestore();
       }
     );
   }

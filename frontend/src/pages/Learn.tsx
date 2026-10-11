@@ -1,7 +1,7 @@
 import ConceptCard from "../components/learn/ConceptCard";
 
 import Card from "../components/ui/Card";
-import SectionHeader from "../components/ui/SectionHeader";
+import PageSection from "../components/ui/PageSection";
 
 import {
   DATA_SOURCES,
@@ -23,14 +23,12 @@ function Learn() {
         each one.
       </p>
 
-      <div className="learn">
-        <section className="learn-section">
-          <SectionHeader
-            title="Space weather"
-            description="Activity on the Sun and what it does to Earth's magnetic field."
-          />
-
-          <div className="concept-grid">
+      <div className="page-sections">
+        <PageSection
+          title="Space weather"
+          description="Activity on the Sun and what it does to Earth's magnetic field."
+        >
+          <div className="ui-grid ui-grid-wide">
             {SPACE_WEATHER_CONCEPTS.map(
               (concept) => (
                 <ConceptCard
@@ -40,15 +38,13 @@ function Learn() {
               )
             )}
           </div>
-        </section>
+        </PageSection>
 
-        <section className="learn-section">
-          <SectionHeader
-            title="Observing conditions"
-            description="What decides how much of the sky you can actually see."
-          />
-
-          <div className="concept-grid">
+        <PageSection
+          title="Observing conditions"
+          description="What decides how much of the sky you can actually see."
+        >
+          <div className="ui-grid ui-grid-wide">
             {OBSERVING_CONCEPTS.map(
               (concept) => (
                 <ConceptCard
@@ -58,29 +54,33 @@ function Learn() {
               )
             )}
           </div>
-        </section>
+        </PageSection>
 
-        <section className="learn-section">
-          <SectionHeader
-            title="Data sources and limitations"
-            description="Where AstroCast's numbers come from, and what they cannot tell you."
-          />
-
-          <div className="concept-grid">
+        <PageSection
+          title="Data sources and limitations"
+          description="Where AstroCast's numbers come from, and what they cannot tell you."
+        >
+          <div className="ui-grid ui-grid-wide">
             {DATA_SOURCES.map((source) => (
               <Card
                 key={source.name}
-                className="source-card"
+                className="ui-stack"
               >
-                <h3>{source.name}</h3>
+                <h3 className="ui-card-title">
+                  {source.name}
+                </h3>
 
-                <p>{source.provides}</p>
+                <p className="ui-muted">
+                  {source.provides}
+                </p>
               </Card>
             ))}
           </div>
 
-          <Card className="limitations-card">
-            <h3>Limitations</h3>
+          <Card>
+            <h3 className="ui-card-title">
+              Limitations
+            </h3>
 
             <ul className="limitations">
               {LIMITATIONS.map(
@@ -92,7 +92,7 @@ function Learn() {
               )}
             </ul>
           </Card>
-        </section>
+        </PageSection>
       </div>
     </section>
   );

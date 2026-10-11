@@ -4,8 +4,6 @@ import type {
   MoonSnapshot,
 } from "../../data/mockDashboard";
 
-import "./dashboard.css";
-
 type MoonCardProps = {
   moon: MoonSnapshot;
 };
@@ -15,17 +13,17 @@ function MoonCard({
 }: MoonCardProps) {
   return (
     <Card>
-      <div className="dashboard-card-body">
-        <span className="dashboard-card-title">
+      <div className="ui-stack">
+        <span className="ui-eyebrow">
           Moon
         </span>
 
-        <span className="dashboard-headline">
+        <span className="ui-headline">
           {moon.phase}
         </span>
 
-        <div className="dashboard-row">
-          <span className="dashboard-note">
+        <div className="ui-row">
+          <span className="ui-muted">
             Illumination
           </span>
 
@@ -34,15 +32,15 @@ function MoonCard({
           </span>
         </div>
 
-        <div className="dashboard-row">
-          <span className="dashboard-note">
+        <div className="ui-row">
+          <span className="ui-muted">
             Sets
           </span>
 
           <span>{moon.setsAt}</span>
         </div>
 
-        <p className="dashboard-note">
+        <p className="ui-muted">
           {moon.interference}
         </p>
       </div>

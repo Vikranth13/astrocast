@@ -48,7 +48,7 @@ Multi-page frontend built against mock data first, so layout work does not wait 
 - [x] Space Weather and Alerts pages with severity badges and filters.
 - [x] Recharts line charts on mock time series.
 - [x] Learn page concept cards.
-- [ ] Responsive and keyboard-navigation review.
+- [x] Responsive and keyboard-navigation review.
 - [ ] Week 4 screenshots and report.
 
 ## Should

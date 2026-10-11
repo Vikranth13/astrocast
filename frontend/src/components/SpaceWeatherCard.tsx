@@ -16,6 +16,8 @@ type SpaceWeatherCardProps = {
   errorMessage: string;
 };
 
+const CARD_TITLE = "Space Weather";
+
 function formatTimestamp(
   timestamp: string
 ): string {
@@ -31,8 +33,10 @@ function SpaceWeatherCard({
 }: SpaceWeatherCardProps) {
   if (isLoading) {
     return (
-      <Card className="space-weather-card">
-        <h2>Space Weather</h2>
+      <Card className="ui-stack">
+        <h3 className="ui-card-title">
+          {CARD_TITLE}
+        </h3>
 
         <LoadingState
           message="Loading NOAA geomagnetic data..."
@@ -43,8 +47,10 @@ function SpaceWeatherCard({
 
   if (errorMessage) {
     return (
-      <Card className="space-weather-card">
-        <h2>Space Weather</h2>
+      <Card className="ui-stack">
+        <h3 className="ui-card-title">
+          {CARD_TITLE}
+        </h3>
 
         <ErrorState
           message={errorMessage}
@@ -55,8 +61,10 @@ function SpaceWeatherCard({
 
   if (!data) {
     return (
-      <Card className="space-weather-card">
-        <h2>Space Weather</h2>
+      <Card className="ui-stack">
+        <h3 className="ui-card-title">
+          {CARD_TITLE}
+        </h3>
 
         <EmptyState
           message="No stored NOAA data is available."
@@ -66,9 +74,11 @@ function SpaceWeatherCard({
   }
 
   return (
-    <Card className="space-weather-card">
-      <div className="space-weather-header">
-        <h2>Space Weather</h2>
+    <Card className="ui-stack">
+      <div className="ui-row">
+        <h3 className="ui-card-title">
+          {CARD_TITLE}
+        </h3>
 
         <DataFreshness
           status={data.freshness.status}
@@ -78,7 +88,7 @@ function SpaceWeatherCard({
         />
       </div>
 
-      <p className="space-weather-kp">
+      <p className="ui-headline">
         Kp {data.facts.kp.toFixed(2)}
       </p>
 
@@ -117,7 +127,7 @@ function SpaceWeatherCard({
 
       <p>{data.explanation}</p>
 
-      <p className="space-weather-note">
+      <p className="ui-caption">
         This describes global geomagnetic
         activity, not a local aurora forecast.
       </p>

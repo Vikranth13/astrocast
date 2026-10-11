@@ -1,3 +1,4 @@
+import Meter from "../ui/Meter";
 import SeverityBadge from "../ui/SeverityBadge";
 
 import type {
@@ -47,7 +48,7 @@ function ScoreBreakdown({
           className="breakdown-row"
           key={factor.factor}
         >
-          <div className="breakdown-head">
+          <div className="ui-row">
             <span className="breakdown-name">
               {factor.factor}
 
@@ -61,26 +62,21 @@ function ScoreBreakdown({
               )}
             </span>
 
-            <span className="breakdown-value">
+            <span className="ui-caption">
               {factor.value}, costs{" "}
               {factor.penalty} points
             </span>
           </div>
 
-          <div className="breakdown-meter">
-            <div
-              className="breakdown-meter-fill"
-              style={{
-                width: `${
-                  (factor.penalty /
-                    largestPenalty) *
-                  100
-                }%`,
-              }}
-            />
-          </div>
+          <Meter
+            percent={
+              (factor.penalty / largestPenalty)
+              * 100
+            }
+            tone="caution"
+          />
 
-          <p className="breakdown-note">
+          <p className="ui-caption">
             {factor.note}
           </p>
         </div>

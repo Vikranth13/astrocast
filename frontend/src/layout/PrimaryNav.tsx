@@ -1,5 +1,7 @@
 import {
+  useRef,
   useState,
+  type KeyboardEvent,
 } from "react";
 
 import {
@@ -14,15 +16,33 @@ function PrimaryNav() {
   const [isMenuOpen, setIsMenuOpen] =
     useState(false);
 
+  const toggleRef =
+    useRef<HTMLButtonElement>(null);
+
+  function handleKeyDown(
+    event: KeyboardEvent<HTMLElement>
+  ) {
+    if (
+      event.key === "Escape"
+      && isMenuOpen
+    ) {
+      setIsMenuOpen(false);
+
+      toggleRef.current?.focus();
+    }
+  }
+
   return (
     <nav
       className="primary-nav"
       aria-label="Primary"
       data-open={isMenuOpen}
+      onKeyDown={handleKeyDown}
     >
       <button
         type="button"
-        className="nav-toggle"
+        className="nav-toggle ui-button-secondary"
+        ref={toggleRef}
         aria-expanded={isMenuOpen}
         aria-controls="primary-nav-list"
         onClick={() =>

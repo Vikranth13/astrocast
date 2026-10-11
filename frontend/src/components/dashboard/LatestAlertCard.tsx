@@ -1,20 +1,22 @@
+import {
+  Link,
+} from "react-router";
+
+import AlertBadges from "../alerts/AlertBadges";
+
 import Card from "../ui/Card";
 import EmptyState from "../ui/EmptyState";
-import SeverityBadge from "../ui/SeverityBadge";
-
-import {
-  toneForAlertStatus,
-  toneForNoaaScale,
-} from "../ui/severity";
 
 import type {
-  LatestAlert,
-} from "../../data/mockDashboard";
+  SpaceWeatherAlert,
+} from "../../data/mockSpaceWeather";
 
-import "./dashboard.css";
+import {
+  formatUtc,
+} from "../../utils/format";
 
 type LatestAlertCardProps = {
-  alert: LatestAlert | null;
+  alert: SpaceWeatherAlert | null;
 };
 
 function LatestAlertCard({
@@ -23,13 +25,13 @@ function LatestAlertCard({
   if (!alert) {
     return (
       <Card>
-        <div className="dashboard-card-body">
-          <span className="dashboard-card-title">
+        <div className="ui-stack">
+          <span className="ui-eyebrow">
             Latest alert
           </span>
 
           <EmptyState
-            message="No active NOAA alerts."
+            message="No NOAA alerts have been stored yet."
           />
         </div>
       </Card>
@@ -38,39 +40,24 @@ function LatestAlertCard({
 
   return (
     <Card>
-      <div className="dashboard-card-body">
-        <span className="dashboard-card-title">
+      <div className="ui-stack">
+        <span className="ui-eyebrow">
           Latest alert
         </span>
 
-        <span className="dashboard-headline">
-          {alert.alertType}
-        </span>
+        <AlertBadges alert={alert} />
 
-        <div className="dashboard-badges">
-          {alert.severity && (
-            <SeverityBadge
-              label={alert.severity}
-              tone={toneForNoaaScale(
-                alert.severity
-              )}
-            />
-          )}
+        <h3 className="ui-card-title">
+          <Link
+            className="ui-title-link"
+            to={`/alerts/${alert.id}`}
+          >
+            {alert.summary}
+          </Link>
+        </h3>
 
-          <SeverityBadge
-            label={alert.status}
-            tone={toneForAlertStatus(
-              alert.status
-            )}
-          />
-        </div>
-
-        <p className="dashboard-note">
-          {alert.summary}
-        </p>
-
-        <p className="dashboard-note">
-          Issued {alert.issuedAt}
+        <p className="ui-caption">
+          Issued {formatUtc(alert.issued_at)}
         </p>
       </div>
     </Card>

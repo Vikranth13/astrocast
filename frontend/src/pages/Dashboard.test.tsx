@@ -4,6 +4,10 @@ import {
 } from "@testing-library/react";
 
 import {
+  MemoryRouter,
+} from "react-router";
+
+import {
   describe,
   expect,
   it,
@@ -12,13 +16,22 @@ import {
 import Dashboard from "./Dashboard";
 
 
+function renderDashboard() {
+  return render(
+    <MemoryRouter>
+      <Dashboard />
+    </MemoryRouter>
+  );
+}
+
+
 describe(
   "Dashboard",
   () => {
     it(
       "groups the cards into titled sections",
       () => {
-        render(<Dashboard />);
+        renderDashboard();
 
         for (const title of [
           "Tonight",
@@ -27,9 +40,8 @@ describe(
         ]) {
           expect(
             screen.getByRole(
-              "heading",
+              "region",
               {
-                level: 2,
                 name: title,
               }
             )
@@ -42,7 +54,7 @@ describe(
     it(
       "shows the observing status and its limiting factor",
       () => {
-        render(<Dashboard />);
+        renderDashboard();
 
         expect(
           screen.getByText("74")
@@ -64,7 +76,7 @@ describe(
     it(
       "shows geomagnetic badges driven by the tone mapping",
       () => {
-        render(<Dashboard />);
+        renderDashboard();
 
         expect(
           screen.getByText("Kp 5.33")
@@ -86,45 +98,47 @@ describe(
 
 
     it(
-      "shows the latest alert with its NOAA scale code",
+      "links the latest alert to its detail page",
       () => {
-        render(<Dashboard />);
+        renderDashboard();
 
         expect(
-          screen.getByText("warning")
-        ).toBeInTheDocument();
-
-        expect(
-          screen.getByText("active")
-        ).toBeInTheDocument();
-
-        expect(
-          screen.getByText(
-            /Geomagnetic K-index of 5 expected/
+          screen.getByRole(
+            "link",
+            {
+              name: "Geomagnetic K-index of 5 expected",
+            }
           )
+        ).toHaveAttribute(
+          "href",
+          "/alerts/7"
+        );
+
+        expect(
+          screen.getByText("Warning")
+        ).toBeInTheDocument();
+
+        expect(
+          screen.getByText("Active")
         ).toBeInTheDocument();
       }
     );
 
 
     it(
-      "shows a mini trend for each stored metric",
+      "derives each 24-hour change from the shared week of data",
       () => {
-        render(<Dashboard />);
-
-        expect(
-          screen.getByText("Planetary Kp")
-        ).toBeInTheDocument();
+        renderDashboard();
 
         expect(
           screen.getByText(
-            "Solar wind speed"
+            "up 3.00 over 24 hours"
           )
         ).toBeInTheDocument();
 
         expect(
           screen.getByText(
-            "up 1.66 over 24 hours"
+            "up 180 over 24 hours"
           )
         ).toBeInTheDocument();
       }

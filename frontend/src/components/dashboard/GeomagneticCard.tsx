@@ -12,8 +12,6 @@ import type {
   GeomagneticSnapshot,
 } from "../../data/mockDashboard";
 
-import "./dashboard.css";
-
 type GeomagneticCardProps = {
   snapshot: GeomagneticSnapshot;
 };
@@ -23,16 +21,16 @@ function GeomagneticCard({
 }: GeomagneticCardProps) {
   return (
     <Card>
-      <div className="dashboard-card-body">
-        <span className="dashboard-card-title">
+      <div className="ui-stack">
+        <span className="ui-eyebrow">
           Geomagnetic activity
         </span>
 
-        <span className="dashboard-headline">
+        <span className="ui-headline">
           Kp {snapshot.kp.toFixed(2)}
         </span>
 
-        <div className="dashboard-badges">
+        <div className="ui-badge-row">
           <SeverityBadge
             label={snapshot.activityLabel}
             tone={toneForActivityLevel(

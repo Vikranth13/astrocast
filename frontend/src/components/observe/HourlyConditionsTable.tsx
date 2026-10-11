@@ -1,3 +1,5 @@
+import Meter from "../ui/Meter";
+
 import type {
   HourlyCondition,
 } from "../../data/mockObserveTonight";
@@ -11,8 +13,15 @@ type HourlyConditionsTableProps = {
 function HourlyConditionsTable({
   hours,
 }: HourlyConditionsTableProps) {
+  // The table scrolls sideways on narrow screens. Making the scroll
+  // container focusable lets keyboard users scroll it too.
   return (
-    <div className="hourly-scroll">
+    <div
+      className="hourly-scroll"
+      tabIndex={0}
+      role="region"
+      aria-label="Hourly conditions table"
+    >
       <table className="hourly-table">
         <thead>
           <tr>
@@ -52,14 +61,10 @@ function HourlyConditionsTable({
                 <div className="hourly-score">
                   <span>{hour.score}</span>
 
-                  <div className="hourly-meter">
-                    <div
-                      className="hourly-meter-fill"
-                      style={{
-                        width: `${hour.score}%`,
-                      }}
-                    />
-                  </div>
+                  <Meter
+                    percent={hour.score}
+                    className="hourly-meter"
+                  />
                 </div>
               </td>
             </tr>

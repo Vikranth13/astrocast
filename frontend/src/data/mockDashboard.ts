@@ -1,9 +1,20 @@
 import type {
   ActivityLevel,
-  AlertStatus,
   FreshnessStatus,
   RiskLevel,
 } from "../components/ui/severity";
+
+import {
+  MOCK_ALERTS,
+  MOCK_CURRENT_CONDITIONS,
+  MOCK_RISK,
+  type SpaceWeatherAlert,
+} from "./mockSpaceWeather";
+
+import {
+  MOCK_KP_TREND,
+  MOCK_SOLAR_WIND_TREND,
+} from "./mockTrends";
 
 export type ObservingStatus = {
   score: number;
@@ -36,14 +47,6 @@ export type GeomagneticSnapshot = {
   freshnessAgeMinutes: number;
 };
 
-export type LatestAlert = {
-  alertType: string;
-  severity: string | null;
-  status: AlertStatus;
-  issuedAt: string;
-  summary: string;
-};
-
 export type RecommendedTarget = {
   name: string;
   kind: string;
@@ -52,17 +55,18 @@ export type RecommendedTarget = {
   reason: string;
 };
 
-export type TrendPoint = {
-  label: string;
-  value: number;
+export type MiniTrendPoint = {
+  observed_at: string;
+  value: number | null;
 };
 
 export type MiniTrend = {
   metric: string;
   unit: string;
+  decimals: number;
   current: number;
   change: number;
-  points: TrendPoint[];
+  points: MiniTrendPoint[];
 };
 
 export type DashboardSnapshot = {
@@ -70,10 +74,63 @@ export type DashboardSnapshot = {
   bestWindow: BestWindow;
   moon: MoonSnapshot;
   geomagnetic: GeomagneticSnapshot;
-  latestAlert: LatestAlert | null;
+  latestAlert: SpaceWeatherAlert | null;
   recommendedTarget: RecommendedTarget;
   trends: MiniTrend[];
 };
+
+// The trend series hold one reading every three hours.
+const READINGS_PER_DAY = 8;
+
+function measuredValueAt(
+  series: MiniTrendPoint[],
+  index: number
+): number {
+  const value = series[index]?.value;
+
+  if (value === null || value === undefined) {
+    throw new Error(
+      `Mock trend has no measurement at index ${index}.`
+    );
+  }
+
+  return value;
+}
+
+// Derived from the same week of data the Trends page charts, so the
+// Dashboard can never disagree with it. The change compares the latest
+// reading with the one exactly 24 hours earlier.
+function buildMiniTrend(
+  metric: string,
+  unit: string,
+  decimals: number,
+  series: MiniTrendPoint[]
+): MiniTrend {
+  const lastIndex = series.length - 1;
+
+  const current = measuredValueAt(
+    series,
+    lastIndex
+  );
+
+  const dayEarlier = measuredValueAt(
+    series,
+    lastIndex - READINGS_PER_DAY
+  );
+
+  const precision = 10 ** decimals;
+
+  return {
+    metric,
+    unit,
+    decimals,
+    current,
+    change:
+      Math.round((current - dayEarlier) * precision)
+      / precision,
+    points: series.slice(-READINGS_PER_DAY),
+  };
+}
 
 export const MOCK_DASHBOARD: DashboardSnapshot = {
   observing: {
@@ -99,23 +156,21 @@ export const MOCK_DASHBOARD: DashboardSnapshot = {
   },
 
   geomagnetic: {
-    kp: 5.33,
-    activityLabel: "Minor geomagnetic storm",
-    activityLevel: "minor",
-    noaaScale: "G1",
-    riskLevel: "moderate",
-    freshnessStatus: "current",
-    freshnessAgeMinutes: 42,
+    kp: MOCK_CURRENT_CONDITIONS.facts.kp,
+    activityLabel:
+      MOCK_CURRENT_CONDITIONS.geomagnetic_activity.label,
+    activityLevel:
+      MOCK_CURRENT_CONDITIONS.geomagnetic_activity.level,
+    noaaScale:
+      MOCK_CURRENT_CONDITIONS.geomagnetic_activity.noaa_scale,
+    riskLevel: MOCK_RISK.risk.level,
+    freshnessStatus:
+      MOCK_CURRENT_CONDITIONS.freshness.status,
+    freshnessAgeMinutes:
+      MOCK_CURRENT_CONDITIONS.freshness.age_minutes,
   },
 
-  latestAlert: {
-    alertType: "warning",
-    severity: "G1",
-    status: "active",
-    issuedAt: "21:40 UTC",
-    summary:
-      "Geomagnetic K-index of 5 expected. Aurora may be visible at high latitudes.",
-  },
+  latestAlert: MOCK_ALERTS[0] ?? null,
 
   recommendedTarget: {
     name: "Andromeda Galaxy (M31)",
@@ -127,38 +182,23 @@ export const MOCK_DASHBOARD: DashboardSnapshot = {
   },
 
   trends: [
-    {
-      metric: "Planetary Kp",
-      unit: "index",
-      current: 5.33,
-      change: 1.66,
-      points: [
-        { label: "00:00", value: 2.33 },
-        { label: "03:00", value: 2.67 },
-        { label: "06:00", value: 3.0 },
-        { label: "09:00", value: 3.67 },
-        { label: "12:00", value: 3.33 },
-        { label: "15:00", value: 4.33 },
-        { label: "18:00", value: 5.0 },
-        { label: "21:00", value: 5.33 },
-      ],
-    },
+    buildMiniTrend(
+      "Planetary Kp",
+      "index",
+      2,
+      MOCK_KP_TREND.points
+    ),
 
-    {
-      metric: "Solar wind speed",
-      unit: "km/s",
-      current: 612,
-      change: 148,
-      points: [
-        { label: "00:00", value: 421 },
-        { label: "03:00", value: 438 },
-        { label: "06:00", value: 464 },
-        { label: "09:00", value: 502 },
-        { label: "12:00", value: 547 },
-        { label: "15:00", value: 578 },
-        { label: "18:00", value: 604 },
-        { label: "21:00", value: 612 },
-      ],
-    },
+    buildMiniTrend(
+      "Solar wind speed",
+      "km/s",
+      0,
+      MOCK_SOLAR_WIND_TREND.points.map(
+        (point) => ({
+          observed_at: point.observed_at,
+          value: point.speed_km_s,
+        })
+      )
+    ),
   ],
 };

@@ -124,6 +124,10 @@ function TrendLineChart({
     )
     .map((point) => point.observed_at);
 
+  // The chart is one image to assistive technology, described by the
+  // summary. Recharts' own keyboard layer is turned off because it
+  // would add a focusable element inside that image. The data table
+  // below is the keyboard and screen reader route to every value.
   return (
     <figure className="trend-chart">
       <div
@@ -136,6 +140,7 @@ function TrendLineChart({
         >
           <LineChart
             data={points}
+            accessibilityLayer={false}
             margin={{
               top: 16,
               right: 16,
@@ -219,14 +224,19 @@ function TrendLineChart({
         </ResponsiveContainer>
       </div>
 
-      <figcaption className="trend-summary">
+      <figcaption className="ui-caption">
         {summary}
       </figcaption>
 
       <details className="trend-data">
         <summary>Show data table</summary>
 
-        <div className="trend-data-scroll">
+        <div
+          className="trend-data-scroll"
+          tabIndex={0}
+          role="region"
+          aria-label={`${title} data table`}
+        >
           <table aria-label={`${title} readings`}>
             <thead>
               <tr>

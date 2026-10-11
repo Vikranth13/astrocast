@@ -1,10 +1,11 @@
+import ScoreReadout from "../observe/ScoreReadout";
+
 import Card from "../ui/Card";
+import Meter from "../ui/Meter";
 
 import type {
   ObservingStatus,
 } from "../../data/mockDashboard";
-
-import "./dashboard.css";
 
 type ObservingStatusCardProps = {
   status: ObservingStatus;
@@ -14,40 +15,24 @@ function ObservingStatusCard({
   status,
 }: ObservingStatusCardProps) {
   return (
-    <Card className="dashboard-lead">
-      <div className="dashboard-card-body">
-        <span className="dashboard-card-title">
+    <Card className="ui-span-2">
+      <div className="ui-stack">
+        <span className="ui-eyebrow">
           Observing status
         </span>
 
-        <div className="dashboard-score">
-          <span className="dashboard-score-value">
-            {status.score}
-          </span>
+        <ScoreReadout
+          score={status.score}
+          rating={status.rating}
+        />
 
-          <span className="dashboard-score-total">
-            / 100
-          </span>
+        <Meter percent={status.score} />
 
-          <span className="dashboard-headline">
-            {status.rating}
-          </span>
-        </div>
-
-        <div className="dashboard-meter">
-          <div
-            className="dashboard-meter-fill"
-            style={{
-              width: `${status.score}%`,
-            }}
-          />
-        </div>
-
-        <p className="dashboard-note">
+        <p className="ui-muted">
           {status.summary}
         </p>
 
-        <p className="dashboard-note">
+        <p className="ui-muted">
           Limiting factor:{" "}
           {status.limitingFactor}
         </p>

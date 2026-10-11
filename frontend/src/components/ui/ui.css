@@ -5,6 +5,18 @@
   padding: var(--space-5);
 }
 
+.page-sections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-7);
+}
+
+.page-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
 .ui-section-header {
   display: flex;
   align-items: flex-start;
@@ -23,22 +35,123 @@
   font-size: var(--text-sm);
 }
 
-.ui-metric-card {
+.ui-stack {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-3);
 }
 
-.ui-metric-label {
+.ui-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.ui-grid {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(var(--grid-min, 240px), 1fr)
+  );
+  gap: var(--space-4);
+}
+
+/* Grid items default to min-width: auto, so anything with a wide
+   intrinsic size, such as a long unbroken value, would hold its card
+   open past the edge of a narrow screen. */
+.ui-grid > * {
+  min-width: 0;
+}
+
+.ui-grid-compact {
+  --grid-min: 200px;
+}
+
+.ui-grid-wide {
+  --grid-min: 280px;
+}
+
+.ui-span-2 {
+  grid-column: span 2;
+}
+
+.ui-span-all {
+  grid-column: 1 / -1;
+}
+
+.ui-badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.ui-eyebrow {
   color: var(--color-text-muted);
   font-size: var(--text-sm);
+  letter-spacing: 1px;
+  text-transform: uppercase;
 }
 
-.ui-metric-value {
+.ui-label {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.ui-card-title {
+  font-size: var(--text-lg);
+}
+
+.ui-headline {
   color: var(--color-text);
   font-size: var(--text-2xl);
   font-weight: 700;
   line-height: var(--leading-tight);
+}
+
+.ui-muted {
+  color: var(--color-text-muted);
+}
+
+.ui-caption {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.ui-footnote {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+}
+
+.ui-title-link {
+  color: var(--color-text-heading);
+  text-decoration: none;
+}
+
+.ui-title-link:hover {
+  color: var(--color-accent-hover);
+  text-decoration: underline;
+}
+
+.ui-button-secondary {
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  font-size: var(--text-sm);
+}
+
+.ui-button-secondary:hover:not(:disabled) {
+  background: var(--color-surface);
+}
+
+.ui-metric-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
 }
 
 .ui-metric-unit {
@@ -46,11 +159,6 @@
   color: var(--color-text-muted);
   font-size: var(--text-sm);
   font-weight: 400;
-}
-
-.ui-metric-footnote {
-  color: var(--color-text-muted);
-  font-size: var(--text-xs);
 }
 
 .ui-badge {
@@ -96,9 +204,21 @@
   gap: var(--space-2);
 }
 
-.ui-freshness-age {
-  color: var(--color-text-muted);
-  font-size: var(--text-xs);
+.ui-meter {
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-raised);
+  overflow: hidden;
+}
+
+.ui-meter-fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+}
+
+.ui-meter-caution .ui-meter-fill {
+  background: var(--tone-caution-text);
 }
 
 .ui-state {
@@ -114,4 +234,22 @@
   border-color: var(--tone-critical-border);
   background: var(--tone-critical-bg);
   color: var(--tone-critical-text);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 900px) {
+  .ui-span-2 {
+    grid-column: auto;
+  }
 }
