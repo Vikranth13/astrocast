@@ -2,11 +2,21 @@ import type {
   CurrentSpaceWeather,
 } from "../api/astrocastApi";
 
+import Card from "./ui/Card";
+import DataFreshness from "./ui/DataFreshness";
+import EmptyState from "./ui/EmptyState";
+import ErrorState from "./ui/ErrorState";
+import LoadingState from "./ui/LoadingState";
+
+import "./SpaceWeatherCard.css";
+
 type SpaceWeatherCardProps = {
   data: CurrentSpaceWeather | null;
   isLoading: boolean;
   errorMessage: string;
 };
+
+const CARD_TITLE = "Space Weather";
 
 function formatTimestamp(
   timestamp: string
@@ -16,26 +26,6 @@ function formatTimestamp(
   ).toLocaleString();
 }
 
-function formatAge(
-  ageMinutes: number
-): string {
-  if (ageMinutes < 60) {
-    return `${ageMinutes} minutes`;
-  }
-
-  const hours = Math.floor(
-    ageMinutes / 60
-  );
-
-  const minutes = ageMinutes % 60;
-
-  if (minutes === 0) {
-    return `${hours} hours`;
-  }
-
-  return `${hours}h ${minutes}m`;
-}
-
 function SpaceWeatherCard({
   data,
   isLoading,
@@ -43,51 +33,62 @@ function SpaceWeatherCard({
 }: SpaceWeatherCardProps) {
   if (isLoading) {
     return (
-      <div className="card space-weather-card">
-        <h2>Space Weather</h2>
+      <Card className="ui-stack">
+        <h3 className="ui-card-title">
+          {CARD_TITLE}
+        </h3>
 
-        <p>
-          Loading NOAA geomagnetic data...
-        </p>
-      </div>
+        <LoadingState
+          message="Loading NOAA geomagnetic data..."
+        />
+      </Card>
     );
   }
 
   if (errorMessage) {
     return (
-      <div className="card space-weather-card">
-        <h2>Space Weather</h2>
+      <Card className="ui-stack">
+        <h3 className="ui-card-title">
+          {CARD_TITLE}
+        </h3>
 
-        <p className="error-message">
-          {errorMessage}
-        </p>
-      </div>
+        <ErrorState
+          message={errorMessage}
+        />
+      </Card>
     );
   }
 
   if (!data) {
     return (
-      <div className="card space-weather-card">
-        <h2>Space Weather</h2>
+      <Card className="ui-stack">
+        <h3 className="ui-card-title">
+          {CARD_TITLE}
+        </h3>
 
-        <p>
-          No stored NOAA data is available.
-        </p>
-      </div>
+        <EmptyState
+          message="No stored NOAA data is available."
+        />
+      </Card>
     );
   }
 
   return (
-    <div className="card space-weather-card">
-      <div className="space-weather-header">
-        <h2>Space Weather</h2>
+    <Card className="ui-stack">
+      <div className="ui-row">
+        <h3 className="ui-card-title">
+          {CARD_TITLE}
+        </h3>
 
-        <span className="space-weather-badge">
-          {data.freshness.status}
-        </span>
+        <DataFreshness
+          status={data.freshness.status}
+          ageMinutes={
+            data.freshness.age_minutes
+          }
+        />
       </div>
 
-      <p className="space-weather-kp">
+      <p className="ui-headline">
         Kp {data.facts.kp.toFixed(2)}
       </p>
 
@@ -109,13 +110,6 @@ function SpaceWeatherCard({
           )}
         </p>
 
-        <p>
-          <strong>Data age:</strong>{" "}
-          {formatAge(
-            data.freshness.age_minutes
-          )}
-        </p>
-
         {data.facts.station_count !== null && (
           <p>
             <strong>Stations:</strong>{" "}
@@ -133,11 +127,11 @@ function SpaceWeatherCard({
 
       <p>{data.explanation}</p>
 
-      <p className="space-weather-note">
+      <p className="ui-caption">
         This describes global geomagnetic
         activity, not a local aurora forecast.
       </p>
-    </div>
+    </Card>
   );
 }
 
