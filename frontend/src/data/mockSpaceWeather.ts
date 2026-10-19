@@ -1,69 +1,8 @@
 import type {
-  CurrentSpaceWeather,
-} from "../api/astrocastApi";
-
-import type {
-  AlertSeverity,
-  AlertStatus,
-  AlertType,
-  RiskLevel,
-} from "../components/ui/severity";
-
-export type SpaceWeatherExplanation = {
-  summary: string;
-  details: string[];
-  caveats: string[];
-};
-
-export type CurrentConditions =
-  CurrentSpaceWeather & {
-    explanation_detail: SpaceWeatherExplanation;
-  };
-
-export type SpaceWeatherRiskFactor = {
-  rule_id: string;
-  factor: string;
-  value: number;
-  unit: string;
-  description: string;
-};
-
-export type SpaceWeatherRisk = {
-  source: string;
-  assessed_at: string;
-  raw_values: {
-    kp: number;
-    kp_observed_at: string;
-    solar_wind_speed_km_s: number | null;
-    solar_wind_speed_observed_at: string | null;
-    solar_wind_density_per_cm3: number | null;
-    solar_wind_density_observed_at: string | null;
-    solar_wind_station: string | null;
-  };
-  risk: {
-    level: RiskLevel;
-    contributing_factors: SpaceWeatherRiskFactor[];
-    rule_ids: string[];
-  };
-};
-
-export type SpaceWeatherAlert = {
-  id: number;
-  source: string;
-  external_id: string | null;
-  alert_type: AlertType;
-  severity: AlertSeverity | null;
-  issued_at: string;
-  expires_at: string | null;
-  status: AlertStatus;
-  summary: string;
-  ingested_at: string;
-};
-
-export type SpaceWeatherAlertDetail =
-  SpaceWeatherAlert & {
-    explanation: SpaceWeatherExplanation;
-  };
+  CurrentSpaceWeatherResponse,
+  CurrentSpaceWeatherRiskResponse,
+  SpaceWeatherAlertDetailResponse,
+} from "../api/types/spaceWeather";
 
 // Caveat and detail wording is copied from the backend explanation
 // service, so the mock reads exactly as the real responses will.
@@ -89,7 +28,7 @@ const SOLAR_RADIATION_DETAIL =
 const CURRENT_SUMMARY =
   "The planetary K-index is 5.33, which reaches NOAA G1 (minor geomagnetic storm).";
 
-export const MOCK_CURRENT_CONDITIONS: CurrentConditions = {
+export const MOCK_CURRENT_CONDITIONS: CurrentSpaceWeatherResponse = {
   source: "NOAA_SWPC",
   metric_name: "planetary_k_index",
   observed_at: "2026-09-06T21:00:00Z",
@@ -128,7 +67,7 @@ export const MOCK_CURRENT_CONDITIONS: CurrentConditions = {
   },
 };
 
-export const MOCK_RISK: SpaceWeatherRisk = {
+export const MOCK_RISK: CurrentSpaceWeatherRiskResponse = {
   source: "NOAA_SWPC",
   assessed_at: "2026-09-06T21:45:00Z",
 
@@ -168,9 +107,25 @@ export const MOCK_RISK: SpaceWeatherRisk = {
       "SW_SPEED_ELEVATED",
     ],
   },
+
+  // Assembled in the order build_risk_explanation uses.
+  explanation: {
+    summary: "AstroCast rates current space-weather risk as moderate.",
+    details: [
+      CURRENT_SUMMARY,
+      "In the latest stored solar-wind reading, solar-wind speed is 612 km/s (elevated), and proton density is 8.4 per cubic centimetre (within typical range).",
+      "KP_G1_G2: Kp of 5.33 is in the NOAA G1 to G2 storm range.",
+      "SW_SPEED_ELEVATED: Solar wind speed of 612 km/s is above the elevated threshold.",
+      `Storm-level activity of this size can push the auroral oval toward higher mid-latitudes. ${AURORA_LOCATION_CAVEAT}`,
+      "Weak power-grid fluctuations are possible and minor effects on satellite operations may occur.",
+    ],
+    caveats: [
+      INFORMATIONAL_CAVEAT,
+    ],
+  },
 };
 
-export const MOCK_ALERTS: SpaceWeatherAlertDetail[] = [
+export const MOCK_ALERTS: SpaceWeatherAlertDetailResponse[] = [
   {
     id: 7,
     source: "NOAA_SWPC",

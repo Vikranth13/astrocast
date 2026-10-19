@@ -1,6 +1,6 @@
 import type {
-  CurrentSpaceWeather,
-} from "../api/astrocastApi";
+  CurrentSpaceWeatherResponse,
+} from "../api/types/spaceWeather";
 
 import Card from "./ui/Card";
 import DataFreshness from "./ui/DataFreshness";
@@ -11,7 +11,7 @@ import LoadingState from "./ui/LoadingState";
 import "./SpaceWeatherCard.css";
 
 type SpaceWeatherCardProps = {
-  data: CurrentSpaceWeather | null;
+  data: CurrentSpaceWeatherResponse | null;
   isLoading: boolean;
   errorMessage: string;
 };

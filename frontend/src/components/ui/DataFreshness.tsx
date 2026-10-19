@@ -2,8 +2,11 @@ import SeverityBadge from "./SeverityBadge";
 
 import {
   toneForFreshness,
-  type FreshnessStatus,
 } from "./severity";
+
+import type {
+  FreshnessStatus,
+} from "../../api/types/spaceWeather";
 
 import "./ui.css";
 

@@ -10,14 +10,14 @@ import {
 } from "vitest";
 
 import type {
-  CurrentSpaceWeather,
-} from "../api/astrocastApi";
+  CurrentSpaceWeatherResponse,
+} from "../api/types/spaceWeather";
 
 import SpaceWeatherCard from "./SpaceWeatherCard";
 
 
 const SPACE_WEATHER_DATA:
-  CurrentSpaceWeather = {
+  CurrentSpaceWeatherResponse = {
     source: "NOAA_SWPC",
 
     metric_name: "planetary_k_index",
@@ -52,6 +52,16 @@ const SPACE_WEATHER_DATA:
       "The latest observed planetary "
       + "K-index is 1.67."
     ),
+
+    explanation_detail: {
+      summary: (
+        "The planetary K-index is 1.67, "
+        + "which is below the NOAA G1 "
+        + "geomagnetic storm threshold."
+      ),
+      details: [],
+      caveats: [],
+    },
   };
 
 

@@ -2,7 +2,7 @@ import Card from "../ui/Card";
 
 import type {
   SpaceWeatherExplanation,
-} from "../../data/mockSpaceWeather";
+} from "../../api/types/spaceWeather";
 
 import "./spaceWeather.css";
 

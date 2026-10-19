@@ -1,58 +1,16 @@
+import type {
+  ActivityLevel,
+  AlertStatus,
+  FreshnessStatus,
+  RiskLevel,
+} from "../../api/types/spaceWeather";
+
 export type Tone =
   | "quiet"
   | "info"
   | "caution"
   | "warning"
   | "critical";
-
-export type FreshnessStatus =
-  | "current"
-  | "delayed"
-  | "stale";
-
-export type RiskLevel =
-  | "low"
-  | "moderate"
-  | "high"
-  | "severe";
-
-export type ActivityLevel =
-  | "below_storm"
-  | "minor"
-  | "moderate"
-  | "strong"
-  | "severe"
-  | "extreme";
-
-export const ALERT_STATUSES = [
-  "active",
-  "expired",
-  "unknown",
-] as const;
-
-export type AlertStatus =
-  (typeof ALERT_STATUSES)[number];
-
-export const ALERT_TYPES = [
-  "alert",
-  "warning",
-  "watch",
-  "summary",
-  "cancellation",
-  "other",
-] as const;
-
-export type AlertType =
-  (typeof ALERT_TYPES)[number];
-
-export const ALERT_SEVERITIES = [
-  "G1", "G2", "G3", "G4", "G5",
-  "R1", "R2", "R3", "R4", "R5",
-  "S1", "S2", "S3", "S4", "S5",
-] as const;
-
-export type AlertSeverity =
-  (typeof ALERT_SEVERITIES)[number];
 
 const NOAA_SCALE_TONES: Record<string, Tone> = {
   "1": "caution",

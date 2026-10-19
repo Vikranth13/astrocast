@@ -86,11 +86,11 @@ Allowed frontend development origins currently include ports `5173` and `5174`.
 
 ## Frontend Responsibilities
 
-### `frontend/src/api/astrocastApi.ts`
+### `frontend/src/api/`
 
-- Defines the TypeScript forecast contract
-- Sends the forecast request
-- Converts unsuccessful responses into JavaScript errors
+- `types/` holds TypeScript copies of the backend response contracts. Each type keeps the name of the Pydantic model it mirrors, so `CurrentSpaceWeatherResponse` means the same thing in both codebases. `/forecast` has no Pydantic model yet, so `types/observe.ts` mirrors the dictionary built in `weather_service.py`.
+- `client.ts` is the only place that calls `fetch`. It reads the base URL from `VITE_API_BASE_URL` (default `http://localhost:8000`), builds query strings without empty values, and turns every failure into an `ApiRequestError`. That error carries the backend's error-envelope message and code, or `network_error`, `unexpected_response`, or `invalid_response` when no usable envelope came back.
+- `observeApi.ts` and `spaceWeatherApi.ts` hold one typed function per endpoint. Components import these and never build URLs themselves.
 
 ### `frontend/src/App.tsx`
 

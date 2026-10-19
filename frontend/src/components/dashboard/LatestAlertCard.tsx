@@ -8,15 +8,15 @@ import Card from "../ui/Card";
 import EmptyState from "../ui/EmptyState";
 
 import type {
-  SpaceWeatherAlert,
-} from "../../data/mockSpaceWeather";
+  SpaceWeatherAlertResponse,
+} from "../../api/types/spaceWeather";
 
 import {
   formatUtc,
 } from "../../utils/format";
 
 type LatestAlertCardProps = {
-  alert: SpaceWeatherAlert | null;
+  alert: SpaceWeatherAlertResponse | null;
 };
 
 function LatestAlertCard({

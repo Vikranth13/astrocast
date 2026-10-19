@@ -372,7 +372,10 @@ astrocast/
 |-- frontend/
 |   |-- src/
 |   |   |-- api/
-|   |   |   `-- astrocastApi.ts
+|   |   |   |-- types/
+|   |   |   |-- client.ts
+|   |   |   |-- observeApi.ts
+|   |   |   `-- spaceWeatherApi.ts
 |   |   |-- components/
 |   |   |   |-- ui/
 |   |   |   |-- alerts/
@@ -393,7 +396,9 @@ astrocast/
 |   |   |-- App.test.tsx
 |   |   |-- App.tsx
 |   |   |-- index.css
-|   |   `-- main.tsx
+|   |   |-- main.tsx
+|   |   `-- vite-env.d.ts
+|   |-- .env.example
 |   |-- package.json
 |   |-- package-lock.json
 |   |-- vite.config.ts
@@ -562,6 +567,8 @@ If port `5173` is already in use, Vite may use another port such as:
 ```text
 http://localhost:5174
 ```
+
+The frontend sends API requests to `http://localhost:8000` by default. To use a different backend, copy `frontend/.env.example` to `frontend/.env` and set `VITE_API_BASE_URL`. Vite reads it at startup, so restart `npm run dev` after changing it.
 
 ## NOAA Ingestion
 

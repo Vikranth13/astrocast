@@ -2,7 +2,7 @@ import {
   ALERT_STATUSES,
   ALERT_TYPES,
   ALERT_SEVERITIES,
-} from "../ui/severity";
+} from "../../api/types/spaceWeather";
 
 import {
   ALERT_STATUS_LABELS,

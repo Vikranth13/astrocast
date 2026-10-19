@@ -5,7 +5,7 @@ import {
   type AlertSeverity,
   type AlertStatus,
   type AlertType,
-} from "../ui/severity";
+} from "../../api/types/spaceWeather";
 
 // Parameter names match the backend's GET /api/space-weather/alerts
 // query parameters, so Week 5 can forward the page URL's filters to

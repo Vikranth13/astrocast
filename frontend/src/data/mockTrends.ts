@@ -1,29 +1,7 @@
-export type SpaceWeatherTrendPoint = {
-  observed_at: string;
-  value: number;
-};
-
-export type SpaceWeatherTrend = {
-  source: string;
-  metric_name: string;
-  unit: string | null;
-  count: number;
-  points: SpaceWeatherTrendPoint[];
-};
-
-export type SolarWindTrendPoint = {
-  observed_at: string;
-  station: string | null;
-  speed_km_s: number | null;
-  density_per_cm3: number | null;
-  temperature_k: number | null;
-};
-
-export type SolarWindTrend = {
-  source: string;
-  count: number;
-  points: SolarWindTrendPoint[];
-};
+import type {
+  SolarWindTrendResponse,
+  SpaceWeatherTrendResponse,
+} from "../api/types/spaceWeather";
 
 // Seven days of three-hour readings, ending at the same moment and the
 // same values as the Dashboard mini trends and the Space Weather page.
@@ -72,7 +50,7 @@ const SOLAR_WIND_DENSITIES = [
   5.6, 6.1, 6.9, 7.8, 9.2, 10.6, 9.4, 8.4,
 ];
 
-export const MOCK_KP_TREND: SpaceWeatherTrend = {
+export const MOCK_KP_TREND: SpaceWeatherTrendResponse = {
   source: "NOAA_SWPC",
   metric_name: "planetary_k_index",
   unit: "index",
@@ -86,7 +64,7 @@ export const MOCK_KP_TREND: SpaceWeatherTrend = {
   ),
 };
 
-export const MOCK_SOLAR_WIND_TREND: SolarWindTrend = {
+export const MOCK_SOLAR_WIND_TREND: SolarWindTrendResponse = {
   source: "NOAA_SWPC",
   count: SOLAR_WIND_SPEEDS.length,
 

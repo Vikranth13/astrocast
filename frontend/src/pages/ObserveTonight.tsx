@@ -4,11 +4,20 @@ import {
 } from "react";
 
 import {
-  getCurrentSpaceWeather,
   getForecast,
-  type AstroCastForecast,
-  type CurrentSpaceWeather,
-} from "../api/astrocastApi";
+} from "../api/observeApi";
+
+import {
+  getCurrentSpaceWeather,
+} from "../api/spaceWeatherApi";
+
+import type {
+  ForecastResponse,
+} from "../api/types/observe";
+
+import type {
+  CurrentSpaceWeatherResponse,
+} from "../api/types/spaceWeather";
 
 import SpaceWeatherCard from "../components/SpaceWeatherCard";
 
@@ -53,7 +62,7 @@ function ObserveTonight() {
   const [city, setCity] = useState("");
 
   const [forecast, setForecast] =
-    useState<AstroCastForecast | null>(
+    useState<ForecastResponse | null>(
       null
     );
 
@@ -66,7 +75,7 @@ function ObserveTonight() {
   const [
     spaceWeather,
     setSpaceWeather,
-  ] = useState<CurrentSpaceWeather | null>(
+  ] = useState<CurrentSpaceWeatherResponse | null>(
     null
   );
 

@@ -51,6 +51,40 @@ Multi-page frontend built against mock data first, so layout work does not wait 
 - [x] Responsive and keyboard-navigation review.
 - [ ] Week 4 screenshots and report.
 
+## Week 5 — Must
+
+Replace mock data with typed real API calls, keeping UI behaviour stable.
+
+- [x] Shared TypeScript response types matching the backend schemas.
+- [x] API client modules by feature.
+- [x] Centralized base URL and error parsing.
+- [x] No direct fetch calls in UI components.
+- [ ] Dashboard connected to the local observing and current space-weather endpoints.
+- [ ] Independent loading and error states, so one failed source does not blank the dashboard.
+- [ ] Data timestamps and freshness shown.
+- [ ] Alert list and detail pages connected.
+- [ ] Filter controls connected to backend query parameters.
+- [ ] Pagination or result limits if needed.
+- [ ] No-results and expired-alert states.
+- [ ] Kp and solar-wind trends connected.
+- [ ] Units and timestamps formatted consistently.
+- [ ] Accessible chart labels and text summaries.
+- [ ] Forecast snapshots saved when appropriate.
+- [ ] Recent searches or location history endpoint, without user accounts.
+- [ ] Recent forecast comparisons or a small history list.
+- [ ] Request cancellation for superseded searches.
+- [ ] Duplicate button submissions prevented.
+- [ ] Friendly retry controls.
+- [ ] Backend errors never expose internal traces.
+- [ ] Full application run from a clean setup.
+- [ ] Expected and invalid cities tested.
+- [ ] Backend-unavailable and NOAA-unavailable scenarios tested.
+- [ ] Documentation and Week 5 report.
+
+Fixed during Week 5, outside the listed tasks:
+
+- [x] `/geocode`, `/forecast`, and `/apod` 502 responses no longer echo upstream exception text. The APOD message had included the request URL, and with it the NASA API key. Found on Day 1, because correct error parsing would have shown that text in the UI.
+
 ## Should
 
 Quality improvements that must not delay required work.

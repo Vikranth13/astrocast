@@ -11,12 +11,12 @@ import {
 } from "./alertFiltering";
 
 import type {
-  SpaceWeatherAlert,
-} from "../../data/mockSpaceWeather";
+  SpaceWeatherAlertResponse,
+} from "../../api/types/spaceWeather";
 
 type AlertBadgesProps = {
   alert: Pick<
-    SpaceWeatherAlert,
+    SpaceWeatherAlertResponse,
     "alert_type" | "severity" | "status"
   >;
 };

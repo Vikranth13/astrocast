@@ -16,21 +16,33 @@ import {
 import ObserveTonight from "./ObserveTonight";
 
 import {
-  getCurrentSpaceWeather,
   getForecast,
-} from "../api/astrocastApi";
+} from "../api/observeApi";
+
+import {
+  getCurrentSpaceWeather,
+} from "../api/spaceWeatherApi";
 
 import type {
-  AstroCastForecast,
-  CurrentSpaceWeather,
-} from "../api/astrocastApi";
+  ForecastResponse,
+} from "../api/types/observe";
+
+import type {
+  CurrentSpaceWeatherResponse,
+} from "../api/types/spaceWeather";
 
 
 vi.mock(
-  "../api/astrocastApi",
+  "../api/observeApi",
+  () => ({
+    getForecast: vi.fn(),
+  })
+);
+
+vi.mock(
+  "../api/spaceWeatherApi",
   () => ({
     getCurrentSpaceWeather: vi.fn(),
-    getForecast: vi.fn(),
   })
 );
 
@@ -43,7 +55,7 @@ const mockedGetForecast =
 
 
 const SPACE_WEATHER_DATA:
-  CurrentSpaceWeather = {
+  CurrentSpaceWeatherResponse = {
     source: "NOAA_SWPC",
 
     metric_name: "planetary_k_index",
@@ -78,11 +90,21 @@ const SPACE_WEATHER_DATA:
       "The latest observed planetary "
       + "K-index is 1.67."
     ),
+
+    explanation_detail: {
+      summary: (
+        "The planetary K-index is 1.67, "
+        + "which is below the NOAA G1 "
+        + "geomagnetic storm threshold."
+      ),
+      details: [],
+      caveats: [],
+    },
   };
 
 
 const FORECAST_DATA:
-  AstroCastForecast = {
+  ForecastResponse = {
     location: {
       name: "New Brunswick",
       region: "New Jersey",

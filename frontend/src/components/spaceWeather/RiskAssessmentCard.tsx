@@ -6,8 +6,8 @@ import {
 } from "../ui/severity";
 
 import type {
-  SpaceWeatherRisk,
-} from "../../data/mockSpaceWeather";
+  CurrentSpaceWeatherRiskResponse,
+} from "../../api/types/spaceWeather";
 
 import {
   formatSource,
@@ -17,7 +17,7 @@ import {
 import "./spaceWeather.css";
 
 type RiskAssessmentCardProps = {
-  assessment: SpaceWeatherRisk;
+  assessment: CurrentSpaceWeatherRiskResponse;
 };
 
 const FACTOR_LABELS: Record<string, string> = {

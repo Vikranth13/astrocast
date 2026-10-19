@@ -7,8 +7,8 @@ import AlertBadges from "./AlertBadges";
 import Card from "../ui/Card";
 
 import type {
-  SpaceWeatherAlert,
-} from "../../data/mockSpaceWeather";
+  SpaceWeatherAlertResponse,
+} from "../../api/types/spaceWeather";
 
 import {
   formatSource,
@@ -18,7 +18,7 @@ import {
 import "./alerts.css";
 
 type AlertListItemProps = {
-  alert: SpaceWeatherAlert;
+  alert: SpaceWeatherAlertResponse;
 };
 
 function AlertListItem({

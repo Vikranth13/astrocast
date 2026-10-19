@@ -2,13 +2,13 @@ import type {
   ActivityLevel,
   FreshnessStatus,
   RiskLevel,
-} from "../components/ui/severity";
+  SpaceWeatherAlertResponse,
+} from "../api/types/spaceWeather";
 
 import {
   MOCK_ALERTS,
   MOCK_CURRENT_CONDITIONS,
   MOCK_RISK,
-  type SpaceWeatherAlert,
 } from "./mockSpaceWeather";
 
 import {
@@ -74,7 +74,7 @@ export type DashboardSnapshot = {
   bestWindow: BestWindow;
   moon: MoonSnapshot;
   geomagnetic: GeomagneticSnapshot;
-  latestAlert: SpaceWeatherAlert | null;
+  latestAlert: SpaceWeatherAlertResponse | null;
   recommendedTarget: RecommendedTarget;
   trends: MiniTrend[];
 };
