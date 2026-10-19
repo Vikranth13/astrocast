@@ -1,3 +1,5 @@
+import logging
+
 import requests
 from fastapi import HTTPException
 
@@ -5,8 +7,25 @@ from config import settings
 from services.scoring_service import calculate_stargazing_score
 
 
+logger = logging.getLogger(__name__)
+
+
 GEOCODING_URL = settings.open_meteo_geocoding_url
 FORECAST_URL = settings.open_meteo_forecast_url
+
+# A requests exception carries the request URL, the
+# upstream host, and library object reprs. That detail
+# belongs in the server log, so clients receive these
+# fixed messages instead.
+GEOCODING_UNAVAILABLE_MESSAGE = (
+    "The location search service could not be "
+    "reached. Try again in a few minutes."
+)
+
+WEATHER_UNAVAILABLE_MESSAGE = (
+    "The weather forecast service could not be "
+    "reached. Try again in a few minutes."
+)
 
 def geocode_city(city: str):
     """
@@ -28,10 +47,15 @@ def geocode_city(city: str):
         response.raise_for_status()
         data = response.json()
     except requests.exceptions.RequestException as error:
+        logger.warning(
+            "Open-Meteo geocoding request failed: %s",
+            error,
+        )
+
         raise HTTPException(
             status_code=502,
-            detail=f"Geocoding service failed: {str(error)}"
-        )
+            detail=GEOCODING_UNAVAILABLE_MESSAGE,
+        ) from error
 
     results = data.get("results")
 
@@ -86,10 +110,15 @@ def get_weather_for_location(latitude: float, longitude: float, timezone: str | 
         response.raise_for_status()
         data = response.json()
     except requests.exceptions.RequestException as error:
+        logger.warning(
+            "Open-Meteo forecast request failed: %s",
+            error,
+        )
+
         raise HTTPException(
             status_code=502,
-            detail=f"Weather service failed: {str(error)}"
-        )
+            detail=WEATHER_UNAVAILABLE_MESSAGE,
+        ) from error
 
     return data
 

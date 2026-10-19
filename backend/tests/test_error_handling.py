@@ -31,6 +31,10 @@ from services.noaa_ingestion_service import (
     NoaaIngestionDatabaseError,
     NoaaIngestionExternalError,
 )
+from services import (
+    astronomy_service,
+    weather_service,
+)
 from api.routes import admin_ingestion
 
 
@@ -290,6 +294,166 @@ def test_ingestion_database_error_becomes_500(
         response.json(),
         "database_error",
     )
+
+
+UPSTREAM_SECRET = "SECRET_UPSTREAM_HOST"
+
+
+def refuse_upstream_connection(*args, **kwargs):
+    """
+    Stand-in for requests.get when an upstream host
+    cannot be reached.
+    """
+
+    raise requests.ConnectionError(
+        "HTTPSConnectionPool(host="
+        f"'{UPSTREAM_SECRET}', port=443): Max "
+        "retries exceeded (Caused by "
+        "NewConnectionError('<urllib3.connection."
+        "HTTPSConnection object at 0x000001EE>'))"
+    )
+
+
+def assert_upstream_detail_hidden(
+    serialized: str,
+) -> None:
+    assert UPSTREAM_SECRET not in serialized
+    assert "HTTPSConnectionPool" not in serialized
+    assert "urllib3" not in serialized
+    assert "0x0000" not in serialized
+
+
+def test_geocoding_failure_hides_upstream_detail(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        weather_service.requests,
+        "get",
+        refuse_upstream_connection,
+    )
+
+    response = client.get(
+        "/geocode?city=Paris"
+    )
+
+    assert response.status_code == 502
+
+    body = response.json()
+
+    assert_error_envelope(
+        body,
+        "upstream_unavailable",
+    )
+
+    assert body["error"]["message"] == (
+        weather_service.GEOCODING_UNAVAILABLE_MESSAGE
+    )
+
+    assert_upstream_detail_hidden(
+        response.text
+    )
+
+
+def test_forecast_failure_hides_upstream_detail(
+    monkeypatch,
+) -> None:
+    """
+    Geocoding succeeds and the weather request is the
+    one that fails.
+    """
+
+    def locate(city):
+        return {
+            "name": "Paris",
+            "region": "Ile-de-France",
+            "country": "France",
+            "latitude": 48.85,
+            "longitude": 2.35,
+            "timezone": "Europe/Paris",
+        }
+
+    monkeypatch.setattr(
+        weather_service,
+        "geocode_city",
+        locate,
+    )
+
+    monkeypatch.setattr(
+        weather_service.requests,
+        "get",
+        refuse_upstream_connection,
+    )
+
+    response = client.get(
+        "/forecast?city=Paris"
+    )
+
+    assert response.status_code == 502
+
+    body = response.json()
+
+    assert_error_envelope(
+        body,
+        "upstream_unavailable",
+    )
+
+    assert body["error"]["message"] == (
+        weather_service.WEATHER_UNAVAILABLE_MESSAGE
+    )
+
+    assert_upstream_detail_hidden(
+        response.text
+    )
+
+
+def test_apod_failure_hides_the_api_key(
+    monkeypatch,
+    caplog,
+) -> None:
+    """
+    A rejected NASA request names the full URL, and the
+    URL carries the API key. The key must reach neither
+    the client nor the server log.
+    """
+
+    secret_key = "SECRET_NASA_KEY"
+
+    def reject_api_key(*args, **kwargs):
+        rejected = requests.Response()
+        rejected.status_code = 403
+
+        raise requests.HTTPError(
+            "403 Client Error: Forbidden for url: "
+            "https://api.nasa.gov/planetary/apod"
+            f"?api_key={secret_key}",
+            response=rejected,
+        )
+
+    monkeypatch.setattr(
+        astronomy_service.requests,
+        "get",
+        reject_api_key,
+    )
+
+    response = client.get("/apod")
+
+    assert response.status_code == 502
+
+    body = response.json()
+
+    assert_error_envelope(
+        body,
+        "upstream_unavailable",
+    )
+
+    assert body["error"]["message"] == (
+        astronomy_service.APOD_UNAVAILABLE_MESSAGE
+    )
+
+    assert secret_key not in response.text
+
+    assert "NASA APOD request failed" in caplog.text
+    assert secret_key not in caplog.text
 
 
 # -------------------------------------------------
