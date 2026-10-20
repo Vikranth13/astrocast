@@ -188,11 +188,23 @@ class SpaceWeatherAlertResponse(BaseModel):
 
 class SpaceWeatherAlertListResponse(BaseModel):
     """
-    Filtered collection of persisted
-    space-weather alerts.
+    One page of persisted space-weather alerts.
+
+    count is the number of alerts on this page.
+    total is the number matching the filters across
+    every page, and offset is how many matching
+    alerts come before this page.
     """
 
     count: int = Field(
+        ge=0,
+    )
+
+    total: int = Field(
+        ge=0,
+    )
+
+    offset: int = Field(
         ge=0,
     )
 

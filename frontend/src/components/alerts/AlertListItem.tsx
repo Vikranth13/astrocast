@@ -48,7 +48,13 @@ function AlertListItem({
           </div>
 
           <div>
-            <dt className="ui-label">Expires</dt>
+            {/* The backend judges the status, so an expired alert says
+                so in past tense instead of reading like a future time. */}
+            <dt className="ui-label">
+              {alert.status === "expired"
+                ? "Expired"
+                : "Expires"}
+            </dt>
 
             <dd>
               {alert.expires_at

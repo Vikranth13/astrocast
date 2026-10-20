@@ -191,6 +191,9 @@ Stored NOAA notifications, newest first. Filters combine with AND.
 | `issued_end` | datetime | ISO 8601, inclusive |
 | `status` | enum | `active`, `expired`, `unknown` |
 | `limit` | int | 1–500, default 100 |
+| `offset` | int | 0 or more, default 0. Matching alerts to skip before this page |
+
+The response carries `count` (alerts on this page), `total` (alerts matching the filters across every page), `offset`, and `alerts`. The page and the total come from the same filters and the same moment, so they always describe the same set. Alerts sharing an issue time are ordered by id, so consecutive pages never overlap or skip one.
 
 `status` is derived from the stored expiry time. NOAA does not always supply one; those alerts are `unknown` rather than being guessed at.
 

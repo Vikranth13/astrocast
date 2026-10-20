@@ -15,6 +15,10 @@ import {
   type ApiLoader,
 } from "./useApiResource";
 
+import {
+  ApiRequestError,
+} from "../api/client";
+
 
 function deferred<T>() {
   let resolve: (value: T) => void = () => {};
@@ -83,6 +87,32 @@ describe(
           expect(result.current).toEqual({
             status: "error",
             message: "Upstream failed.",
+          });
+        });
+      }
+    );
+
+
+    it(
+      "passes on the backend's error code",
+      async () => {
+        const load = () => Promise.reject(
+          new ApiRequestError({
+            message: "Space-weather alert was not found.",
+            status: 404,
+            code: "not_found",
+          })
+        );
+
+        const { result } = renderHook(
+          () => useApiResource(load)
+        );
+
+        await waitFor(() => {
+          expect(result.current).toEqual({
+            status: "error",
+            message: "Space-weather alert was not found.",
+            code: "not_found",
           });
         });
       }

@@ -139,10 +139,21 @@ def list_space_weather_alerts(
             "Maximum alerts to return, newest first."
         ),
     ),
+    offset: int = Query(
+        default=0,
+        ge=0,
+        description=(
+            "Matching alerts to skip before this "
+            "page. Use with limit to page through "
+            "results; total in the response counts "
+            "every match."
+        ),
+    ),
     db: Session = Depends(get_db),
 ):
     """
-    Return stored space-weather alerts, newest first.
+    Return one page of stored space-weather alerts,
+    newest first, with the total number that match.
 
     Filters combine with AND.
     """
@@ -156,6 +167,7 @@ def list_space_weather_alerts(
         issued_end=issued_end,
         status=status,
         limit=limit,
+        offset=offset,
     )
 
 

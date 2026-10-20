@@ -3,6 +3,10 @@ import {
   useState,
 } from "react";
 
+import {
+  ApiRequestError,
+} from "../api/client";
+
 export type ApiResource<T> =
   | {
     status: "idle";
@@ -13,6 +17,10 @@ export type ApiResource<T> =
   | {
     status: "error";
     message: string;
+    // The backend's error code, such as not_found, when the failure came
+    // from the API client. Lets a page tell a missing record from an
+    // unreachable server.
+    code?: string;
   }
   | {
     status: "ready";
@@ -115,6 +123,9 @@ export function useApiResource<T>(
                 error instanceof Error
                   ? error.message
                   : FALLBACK_ERROR_MESSAGE,
+              ...(error instanceof ApiRequestError
+                ? { code: error.code }
+                : {}),
             },
           });
         }

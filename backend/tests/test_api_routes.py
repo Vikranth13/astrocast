@@ -295,6 +295,8 @@ def test_alert_list_route(
     expected_response = (
         SpaceWeatherAlertListResponse(
             count=1,
+            total=26,
+            offset=25,
             alerts=[
                 expected_alert
             ],
@@ -312,6 +314,7 @@ def test_alert_list_route(
         issued_end=None,
         status=None,
         limit=100,
+        offset=0,
     ):
         captured["severity"] = severity
         captured["alert_type"] = (
@@ -320,6 +323,7 @@ def test_alert_list_route(
         captured["source"] = source
         captured["status"] = status
         captured["limit"] = limit
+        captured["offset"] = offset
 
         return expected_response
 
@@ -337,6 +341,7 @@ def test_alert_list_route(
             "&source=NOAA_SWPC"
             "&status=unknown"
             "&limit=5"
+            "&offset=25"
         )
     )
 
@@ -345,6 +350,8 @@ def test_alert_list_route(
     body = response.json()
 
     assert body["count"] == 1
+    assert body["total"] == 26
+    assert body["offset"] == 25
 
     assert (
         body["alerts"][0]["severity"]
@@ -372,6 +379,7 @@ def test_alert_list_route(
     )
 
     assert captured["limit"] == 5
+    assert captured["offset"] == 25
 
 @pytest.mark.parametrize(
     "query",
@@ -382,6 +390,7 @@ def test_alert_list_route(
         "?source=OTHER",
         "?limit=0",
         "?limit=501",
+        "?offset=-1",
     ],
 )
 def test_alert_list_rejects_invalid_filters(

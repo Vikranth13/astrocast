@@ -5,15 +5,11 @@ import {
 } from "vitest";
 
 import {
-  filterAlerts,
   hasActiveFilters,
   readAlertFilters,
+  readAlertPage,
   severityFamilyLabel,
 } from "./alertFiltering";
-
-import {
-  MOCK_ALERTS,
-} from "../../data/mockSpaceWeather";
 
 
 const NO_FILTERS = {
@@ -61,60 +57,45 @@ describe(
 
 
 describe(
-  "filterAlerts",
+  "readAlertPage",
   () => {
     it(
-      "returns everything with no filters",
+      "reads the page number from the URL",
       () => {
         expect(
-          filterAlerts(
-            MOCK_ALERTS,
-            NO_FILTERS
+          readAlertPage(
+            new URLSearchParams("page=3")
           )
-        ).toHaveLength(
-          MOCK_ALERTS.length
-        );
+        ).toBe(3);
       }
     );
 
 
     it(
-      "narrows by each filter and by combinations",
+      "treats a missing or invalid page as the first",
       () => {
-        expect(
-          filterAlerts(
-            MOCK_ALERTS,
-            {
-              ...NO_FILTERS,
-              severity: "G1",
-            }
-          ).map((alert) => alert.id)
-        ).toEqual([7, 6]);
-
-        expect(
-          filterAlerts(
-            MOCK_ALERTS,
-            {
-              ...NO_FILTERS,
-              status: "expired",
-            }
-          ).map((alert) => alert.id)
-        ).toEqual([4, 3, 1]);
-
-        expect(
-          filterAlerts(
-            MOCK_ALERTS,
-            {
-              severity: "G1",
-              type: null,
-              status: "active",
-            }
-          ).map((alert) => alert.id)
-        ).toEqual([7]);
+        for (const query of [
+          "",
+          "page=0",
+          "page=-2",
+          "page=two",
+          "page=1.5",
+        ]) {
+          expect(
+            readAlertPage(
+              new URLSearchParams(query)
+            )
+          ).toBe(1);
+        }
       }
     );
+  }
+);
 
 
+describe(
+  "hasActiveFilters",
+  () => {
     it(
       "reports whether any filter is set",
       () => {

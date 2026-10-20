@@ -1,7 +1,19 @@
 import {
+  useMemo,
+} from "react";
+
+import {
   Link,
   useParams,
 } from "react-router";
+
+import {
+  getSpaceWeatherAlert,
+} from "../api/spaceWeatherApi";
+
+import type {
+  SpaceWeatherAlertDetailResponse,
+} from "../api/types/spaceWeather";
 
 import AlertBadges from "../components/alerts/AlertBadges";
 
@@ -15,11 +27,13 @@ import ExplanationPanel from "../components/spaceWeather/ExplanationPanel";
 
 import Card from "../components/ui/Card";
 import EmptyState from "../components/ui/EmptyState";
+import ErrorState from "../components/ui/ErrorState";
+import LoadingState from "../components/ui/LoadingState";
 import PageSection from "../components/ui/PageSection";
 
 import {
-  MOCK_ALERTS,
-} from "../data/mockSpaceWeather";
+  useApiResource,
+} from "../hooks/useApiResource";
 
 import {
   formatSource,
@@ -40,28 +54,43 @@ function BackToAlerts() {
   );
 }
 
-function AlertDetail() {
-  const { alertId } = useParams();
+function AlertNotFound({
+  alertId,
+}: {
+  alertId: string | undefined;
+}) {
+  return (
+    <section className="page">
+      <BackToAlerts />
 
-  const alert = MOCK_ALERTS.find(
-    (candidate) =>
-      String(candidate.id) === alertId
+      <h1>Alert not found</h1>
+
+      <EmptyState
+        message={`There is no stored alert with ID ${alertId}.`}
+      />
+    </section>
   );
+}
 
-  if (!alert) {
-    return (
-      <section className="page">
-        <BackToAlerts />
-
-        <h1>Alert not found</h1>
-
-        <EmptyState
-          message={`There is no stored alert with ID ${alertId}.`}
-        />
-      </section>
-    );
+// Alert ids are positive whole numbers. Anything else cannot exist, so it
+// is reported as not found without asking the backend.
+function parseAlertId(
+  alertId: string | undefined
+): number | null {
+  if (alertId === undefined || !/^\d+$/.test(alertId)) {
+    return null;
   }
 
+  const id = Number(alertId);
+
+  return id > 0 ? id : null;
+}
+
+function AlertContent({
+  alert,
+}: {
+  alert: SpaceWeatherAlertDetailResponse;
+}) {
   const family = severityFamilyLabel(
     alert.severity
   );
@@ -73,6 +102,17 @@ function AlertDetail() {
       <AlertBadges alert={alert} />
 
       <h1>{alert.summary}</h1>
+
+      {/* The status comes from the backend, judged against the stored
+          expiry time when the page was requested. */}
+      {alert.status === "expired" && alert.expires_at && (
+        <Card className="alert-expired-notice">
+          <p role="note">
+            This alert expired on {formatUtc(alert.expires_at)}. It
+            describes conditions that no longer apply.
+          </p>
+        </Card>
+      )}
 
       <Card>
         <dl className="alert-meta">
@@ -110,7 +150,11 @@ function AlertDetail() {
           </div>
 
           <div>
-            <dt className="ui-label">Expires</dt>
+            <dt className="ui-label">
+              {alert.status === "expired"
+                ? "Expired"
+                : "Expires"}
+            </dt>
             <dd>
               {alert.expires_at
                 ? formatUtc(alert.expires_at)
@@ -137,6 +181,54 @@ function AlertDetail() {
           explanation={alert.explanation}
         />
       </PageSection>
+    </section>
+  );
+}
+
+function AlertDetail() {
+  const { alertId } = useParams();
+
+  const id = parseAlertId(alertId);
+
+  const loadAlert = useMemo(
+    () => (
+      id === null
+        ? null
+        : () => getSpaceWeatherAlert(id)
+    ),
+    [id]
+  );
+
+  const alert = useApiResource(
+    loadAlert,
+    `alert:${id}`
+  );
+
+  if (
+    id === null
+    || (
+      alert.status === "error"
+      && alert.code === "not_found"
+    )
+  ) {
+    return <AlertNotFound alertId={alertId} />;
+  }
+
+  if (alert.status === "ready") {
+    return <AlertContent alert={alert.data} />;
+  }
+
+  return (
+    <section className="page">
+      <BackToAlerts />
+
+      <h1>Alert {alertId}</h1>
+
+      {alert.status === "error" ? (
+        <ErrorState message={alert.message} />
+      ) : (
+        <LoadingState message="Loading the alert..." />
+      )}
     </section>
   );
 }

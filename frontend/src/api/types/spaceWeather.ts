@@ -111,9 +111,13 @@ export type SpaceWeatherAlertResponse = {
   ingested_at: string;
 };
 
-// GET /api/space-weather/alerts
+// GET /api/space-weather/alerts. count is the alerts on this page, total
+// is every alert matching the filters, and offset is how many matching
+// alerts come before this page.
 export type SpaceWeatherAlertListResponse = {
   count: number;
+  total: number;
+  offset: number;
   alerts: SpaceWeatherAlertResponse[];
 };
 

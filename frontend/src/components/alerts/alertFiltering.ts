@@ -8,14 +8,18 @@ import {
 } from "../../api/types/spaceWeather";
 
 // Parameter names match the backend's GET /api/space-weather/alerts
-// query parameters, so Week 5 can forward the page URL's filters to
-// the API unchanged. Note the data field is alert_type, but the
-// query parameter is type.
+// query parameters, so the page forwards its URL filters to the API
+// unchanged and the backend does the filtering. Note the data field is
+// alert_type, but the query parameter is type.
 export const ALERT_FILTER_PARAMS = [
   "severity",
   "type",
   "status",
 ] as const;
+
+export const ALERT_PAGE_PARAM = "page";
+
+export const ALERT_PAGE_SIZE = 25;
 
 export type AlertFilterName =
   (typeof ALERT_FILTER_PARAMS)[number];
@@ -57,12 +61,6 @@ export const SEVERITY_FAMILIES = [
     label: "Solar radiation storm",
   },
 ];
-
-type FilterableAlert = {
-  severity: AlertSeverity | null;
-  alert_type: AlertType;
-  status: AlertStatus;
-};
 
 function pickAllowed<T extends string>(
   value: string | null,
@@ -108,34 +106,18 @@ export function hasActiveFilters(
   );
 }
 
-export function filterAlerts<T extends FilterableAlert>(
-  alerts: T[],
-  filters: AlertFilterState
-): T[] {
-  return alerts.filter((alert) => {
-    if (
-      filters.severity !== null
-      && alert.severity !== filters.severity
-    ) {
-      return false;
-    }
+// Pages are numbered from 1 in the address. Anything that is not a
+// whole number of at least 1 reads as the first page.
+export function readAlertPage(
+  params: URLSearchParams
+): number {
+  const raw = params.get(ALERT_PAGE_PARAM);
 
-    if (
-      filters.type !== null
-      && alert.alert_type !== filters.type
-    ) {
-      return false;
-    }
+  if (raw === null || !/^\d+$/.test(raw)) {
+    return 1;
+  }
 
-    if (
-      filters.status !== null
-      && alert.status !== filters.status
-    ) {
-      return false;
-    }
-
-    return true;
-  });
+  return Math.max(1, Number(raw));
 }
 
 export function severityFamilyLabel(

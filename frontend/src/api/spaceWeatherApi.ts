@@ -28,6 +28,7 @@ export type AlertQuery = {
   issued_start?: string | null;
   issued_end?: string | null;
   limit?: number;
+  offset?: number;
 };
 
 // start and end are ISO 8601 timestamps.

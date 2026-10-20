@@ -125,6 +125,8 @@ describe(
 
       mockedListAlerts.mockResolvedValue({
         count: 1,
+        total: MOCK_ALERTS.length,
+        offset: 0,
         alerts: [MOCK_ALERTS[0]],
       });
 

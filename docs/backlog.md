@@ -62,11 +62,11 @@ Replace mock data with typed real API calls, keeping UI behaviour stable.
 - [x] Dashboard connected to the local observing and current space-weather endpoints. The Dashboard's latest-alert and mini-trend cards were connected on Day 2 as well; the Alerts and Trends pages remain Days 3 and 4.
 - [x] Independent loading and error states, so one failed source does not blank the dashboard.
 - [x] Data timestamps and freshness shown.
-- [ ] Alert list and detail pages connected.
-- [ ] Filter controls connected to backend query parameters.
-- [ ] Pagination or result limits if needed.
-- [ ] No-results and expired-alert states.
-- [ ] Kp and solar-wind trends connected.
+- [x] Alert list and detail pages connected.
+- [x] Filter controls connected to backend query parameters. The TypeScript copy of the filtering was removed.
+- [x] Pagination or result limits if needed. Needed: 222 alerts were stored on Day 3. The list endpoint gained `offset` and `total`, and the page shows 25 at a time.
+- [x] No-results and expired-alert states.
+- [ ] Kp and solar-wind trends connected. The Space Weather page, still on mock data, goes live with Trends on Day 4.
 - [ ] Units and timestamps formatted consistently.
 - [ ] Accessible chart labels and text summaries.
 - [ ] Forecast snapshots saved when appropriate.

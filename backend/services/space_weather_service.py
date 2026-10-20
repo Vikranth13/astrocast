@@ -43,6 +43,7 @@ from services.explanation_service import (  # noqa: F401
 )
 
 from repositories.space_weather_alert_repository import (
+    count_alerts,
     get_alert_by_id,
     list_alerts,
 )
@@ -309,7 +310,16 @@ def get_space_weather_alerts(
     issued_end: datetime | None = None,
     status: str | None = None,
     limit: int = 100,
+    offset: int = 0,
 ) -> SpaceWeatherAlertListResponse:
+    """
+    Return one page of stored alerts, newest first, with the number of
+    alerts matching the filters across every page.
+
+    Status is judged against the same moment for the page and the
+    total, so an alert expiring between the two queries cannot be
+    counted in one and missing from the other.
+    """
 
     if (
         issued_start is not None
@@ -328,16 +338,26 @@ def get_space_weather_alerts(
         timezone.utc
     )
 
+    filters = {
+        "severity": severity,
+        "alert_type": alert_type,
+        "source": source,
+        "issued_start": issued_start,
+        "issued_end": issued_end,
+        "status": status,
+        "now": current_time,
+    }
+
     alerts = list_alerts(
         db=db,
-        severity=severity,
-        alert_type=alert_type,
-        source=source,
-        issued_start=issued_start,
-        issued_end=issued_end,
-        status=status,
-        now=current_time,
         limit=limit,
+        offset=offset,
+        **filters,
+    )
+
+    total = count_alerts(
+        db=db,
+        **filters,
     )
 
     responses = [
@@ -350,6 +370,8 @@ def get_space_weather_alerts(
 
     return SpaceWeatherAlertListResponse(
         count=len(responses),
+        total=total,
+        offset=offset,
         alerts=responses,
     )
 
