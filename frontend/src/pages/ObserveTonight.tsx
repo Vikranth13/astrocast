@@ -21,6 +21,7 @@ import type {
 
 import SpaceWeatherCard from "../components/SpaceWeatherCard";
 
+import CitySearch from "../components/observe/CitySearch";
 import HourlyConditionsTable from "../components/observe/HourlyConditionsTable";
 import ScoreBreakdown from "../components/observe/ScoreBreakdown";
 import ScoreReadout from "../components/observe/ScoreReadout";
@@ -31,12 +32,12 @@ import ErrorState from "../components/ui/ErrorState";
 import Meter from "../components/ui/Meter";
 import MetricCard from "../components/ui/MetricCard";
 import PageSection from "../components/ui/PageSection";
-
-import {
-  MOCK_OBSERVE_TONIGHT,
-} from "../data/mockObserveTonight";
+import PlaceholderCard from "../components/ui/PlaceholderCard";
 
 import "../components/observe/observe.css";
+
+const SEARCH_PROMPT =
+  "Search for a city to see tonight hour by hour.";
 
 const WEEK_SIX_PLACEHOLDERS = [
   {
@@ -177,39 +178,12 @@ function ObserveTonight() {
 
       <div className="page-sections">
         <div className="ui-stack">
-          <div className="observe-search">
-            <label
-              htmlFor="city-search"
-              className="visually-hidden"
-            >
-              City
-            </label>
-
-            <input
-              id="city-search"
-              type="text"
-              placeholder="Enter city name..."
-              value={city}
-              onChange={(event) =>
-                setCity(event.target.value)
-              }
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  handleCheckSky();
-                }
-              }}
-            />
-
-            <button
-              type="button"
-              onClick={handleCheckSky}
-              disabled={isLoading}
-            >
-              {isLoading
-                ? "Checking..."
-                : "Check Sky"}
-            </button>
-          </div>
+          <CitySearch
+            value={city}
+            isLoading={isLoading}
+            onChange={setCity}
+            onSubmit={handleCheckSky}
+          />
 
           {errorMessage && (
             <ErrorState
@@ -346,22 +320,36 @@ function ObserveTonight() {
 
         <PageSection
           title="Hourly conditions"
-          description="A sample night. The backend already fetches hourly weather but does not expose it yet, so this is wired up in Week 5."
+          description="Every hour of tonight's observing window, scored with the same rules as the headline score."
         >
-          <HourlyConditionsTable
-            hours={MOCK_OBSERVE_TONIGHT.hours}
-          />
+          {forecast ? (
+            forecast.hourly.length > 0 ? (
+              <HourlyConditionsTable
+                hours={forecast.hourly}
+              />
+            ) : (
+              <EmptyState
+                message="No hourly readings were available for tonight."
+              />
+            )
+          ) : (
+            <EmptyState message={SEARCH_PROMPT} />
+          )}
         </PageSection>
 
         <PageSection
           title="Score breakdown"
-          description="How each factor moves the score, using the thresholds the scoring service already applies. Sample values until Week 5."
+          description="How each condition moved the score for the forecast hour."
         >
-          <ScoreBreakdown
-            factors={
-              MOCK_OBSERVE_TONIGHT.factors
-            }
-          />
+          {forecast ? (
+            <ScoreBreakdown
+              factors={
+                forecast.stargazing.factors
+              }
+            />
+          ) : (
+            <EmptyState message={SEARCH_PROMPT} />
+          )}
         </PageSection>
 
         <PageSection
@@ -371,21 +359,11 @@ function ObserveTonight() {
           <div className="ui-grid">
             {WEEK_SIX_PLACEHOLDERS.map(
               (placeholder) => (
-                <Card
+                <PlaceholderCard
                   key={placeholder.title}
-                >
-                  <div className="ui-stack">
-                    <span className="ui-eyebrow">
-                      {placeholder.title}
-                    </span>
-
-                    <EmptyState
-                      message={
-                        placeholder.message
-                      }
-                    />
-                  </div>
-                </Card>
+                  title={placeholder.title}
+                  message={placeholder.message}
+                />
               )
             )}
           </div>

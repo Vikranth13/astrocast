@@ -24,12 +24,12 @@ import {
 } from "../api/spaceWeatherApi";
 
 import type {
-  ForecastResponse,
-} from "../api/types/observe";
-
-import type {
   CurrentSpaceWeatherResponse,
 } from "../api/types/spaceWeather";
+
+import {
+  FORECAST_FIXTURE,
+} from "../test/forecastFixture";
 
 
 vi.mock(
@@ -103,39 +103,6 @@ const SPACE_WEATHER_DATA:
   };
 
 
-const FORECAST_DATA:
-  ForecastResponse = {
-    location: {
-      name: "New Brunswick",
-      region: "New Jersey",
-      country: "United States",
-      latitude: 40.48622,
-      longitude: -74.45182,
-      timezone: "America/New_York",
-    },
-
-    forecast_time:
-      "2026-08-05T22:00:00",
-
-    conditions: {
-      cloud_cover_percent: 15,
-      precipitation_probability_percent: 5,
-      temperature_f: 71,
-      wind_speed_mph: 4,
-      visibility_miles: 10,
-    },
-
-    stargazing: {
-      score: 82,
-      rating: "Good",
-      explanation: (
-        "Low cloud cover and good "
-        + "visibility support stargazing."
-      ),
-    },
-  };
-
-
 describe(
   "ObserveTonight",
   () => {
@@ -149,7 +116,7 @@ describe(
 
       mockedGetForecast
         .mockResolvedValue(
-          FORECAST_DATA
+          FORECAST_FIXTURE
         );
     });
 
@@ -200,7 +167,9 @@ describe(
         );
 
         expect(
-          await screen.findByText("82")
+          await screen.findByText(
+            FORECAST_FIXTURE.stargazing.explanation
+          )
         ).toBeInTheDocument();
 
         expect(
@@ -326,6 +295,73 @@ describe(
             }
           )
         ).toBeInTheDocument();
+      }
+    );
+
+
+    it(
+      "asks for a city before showing the hourly sections",
+      async () => {
+        render(<ObserveTonight />);
+
+        await screen.findByText(
+          "Kp 1.67"
+        );
+
+        expect(
+          screen.getAllByText(
+            "Search for a city to see tonight hour by hour."
+          )
+        ).toHaveLength(2);
+
+        expect(
+          screen.queryByRole("table")
+        ).not.toBeInTheDocument();
+      }
+    );
+
+
+    it(
+      "fills the hourly table and breakdown from the forecast",
+      async () => {
+        const user = userEvent.setup();
+
+        render(<ObserveTonight />);
+
+        await screen.findByText(
+          "Kp 1.67"
+        );
+
+        // Enter submits the search form.
+        await user.type(
+          screen.getByRole(
+            "textbox",
+            {
+              name: "City",
+            }
+          ),
+          "New Brunswick{Enter}"
+        );
+
+        const table = await screen.findByRole("table");
+
+        expect(
+          table.querySelectorAll("tbody tr")
+        ).toHaveLength(
+          FORECAST_FIXTURE.hourly.length
+        );
+
+        expect(
+          screen.getByText(
+            /16 mph, costs 8 points/
+          )
+        ).toBeInTheDocument();
+
+        expect(
+          screen.getAllByText(
+            "Limiting factor"
+          )
+        ).toHaveLength(1);
       }
     );
   }

@@ -1,25 +1,169 @@
+import {
+  useMemo,
+  useState,
+} from "react";
+
+import {
+  useSearchParams,
+} from "react-router";
+
+import {
+  getForecast,
+} from "../api/observeApi";
+
+import {
+  getCurrentSpaceWeather,
+  getCurrentSpaceWeatherRisk,
+  getKpTrend,
+  getSolarWindTrend,
+  listSpaceWeatherAlerts,
+} from "../api/spaceWeatherApi";
+
 import BestWindowCard from "../components/dashboard/BestWindowCard";
 import GeomagneticCard from "../components/dashboard/GeomagneticCard";
 import LatestAlertCard from "../components/dashboard/LatestAlertCard";
 import MiniTrendCard from "../components/dashboard/MiniTrendCard";
-import MoonCard from "../components/dashboard/MoonCard";
 import ObservingStatusCard from "../components/dashboard/ObservingStatusCard";
-import RecommendedTargetCard from "../components/dashboard/RecommendedTargetCard";
-
-import PageSection from "../components/ui/PageSection";
+import ResourceCard from "../components/dashboard/ResourceCard";
 
 import {
-  MOCK_DASHBOARD,
-} from "../data/mockDashboard";
+  summarizeTrend,
+} from "../components/dashboard/trendSummary";
+
+import CitySearch from "../components/observe/CitySearch";
+
+import ErrorState from "../components/ui/ErrorState";
+import PageSection from "../components/ui/PageSection";
+import PlaceholderCard from "../components/ui/PlaceholderCard";
+
+import {
+  mapResource,
+  useApiResource,
+} from "../hooks/useApiResource";
+
+const LAST_DAY_MS = 24 * 60 * 60 * 1000;
+
+// The solar-wind source reports once a minute, so a day is about 1,440
+// readings. 2,000 is the most the trend endpoint returns.
+const SOLAR_WIND_DAY_LIMIT = 2000;
+
+const SEARCH_PROMPT =
+  "Search for a city to see tonight's observing conditions.";
+
+function lastDayStart(): string {
+  return new Date(
+    Date.now() - LAST_DAY_MS
+  ).toISOString();
+}
+
+// Module-level loaders keep the same identity between renders, so each
+// source is requested once when the page opens.
+function loadLatestAlert() {
+  return listSpaceWeatherAlerts({
+    limit: 1,
+  });
+}
+
+function loadKpLastDay() {
+  return getKpTrend({
+    start: lastDayStart(),
+  });
+}
+
+function loadSolarWindLastDay() {
+  return getSolarWindTrend({
+    start: lastDayStart(),
+    limit: SOLAR_WIND_DAY_LIMIT,
+  });
+}
 
 function Dashboard() {
+  const [searchParams, setSearchParams] =
+    useSearchParams();
+
+  const city =
+    searchParams.get("city")?.trim() ?? "";
+
+  const [cityInput, setCityInput] =
+    useState(city);
+
+  const [searchError, setSearchError] =
+    useState("");
+
+  // Keeps the search box in step when the city changes through the
+  // address bar or the browser's back button.
+  const [syncedCity, setSyncedCity] =
+    useState(city);
+
+  if (city !== syncedCity) {
+    setSyncedCity(city);
+    setCityInput(city);
+  }
+
+  const loadForecast = useMemo(
+    () => (
+      city
+        ? () => getForecast(city)
+        : null
+    ),
+    [city]
+  );
+
+  // Every source loads on its own. A failure in one only changes the
+  // cards that depend on it.
+  const forecast = useApiResource(loadForecast);
+  const current = useApiResource(getCurrentSpaceWeather);
+  const risk = useApiResource(getCurrentSpaceWeatherRisk);
+  const latestAlert = useApiResource(loadLatestAlert);
+  const kpTrend = useApiResource(loadKpLastDay);
+  const solarWindTrend = useApiResource(loadSolarWindLastDay);
+
+  const kpSummary = mapResource(
+    kpTrend,
+    (trend) => summarizeTrend(
+      "Planetary Kp",
+      "index",
+      2,
+      trend.points
+    )
+  );
+
+  const solarWindSummary = mapResource(
+    solarWindTrend,
+    (trend) => summarizeTrend(
+      "Solar wind speed",
+      "km/s",
+      0,
+      trend.points.map((point) => ({
+        observed_at: point.observed_at,
+        value: point.speed_km_s,
+      }))
+    )
+  );
+
+  function handleSearch() {
+    const trimmedCity = cityInput.trim();
+
+    if (!trimmedCity) {
+      setSearchError("Please enter a city.");
+      return;
+    }
+
+    setSearchError("");
+
+    setSearchParams({
+      city: trimmedCity,
+    });
+  }
+
   return (
     <section className="page">
       <h1>Dashboard</h1>
 
       <p className="page-intro">
-        Tonight at a glance: observing status, the best window,
-        the Moon, geomagnetic risk, the latest alert, and mini trends.
+        Tonight at a glance for the city you choose, alongside global
+        space weather from stored NOAA data. Each card loads on its own,
+        so one unavailable source never hides the others.
       </p>
 
       <div className="page-sections">
@@ -27,21 +171,55 @@ function Dashboard() {
           title="Tonight"
           description="Whether it is worth going out, and when."
         >
-          <div className="ui-grid">
-            <ObservingStatusCard
-              status={MOCK_DASHBOARD.observing}
+          <div className="ui-stack">
+            <CitySearch
+              value={cityInput}
+              isLoading={
+                forecast.status === "loading"
+              }
+              onChange={setCityInput}
+              onSubmit={handleSearch}
             />
 
-            <BestWindowCard
-              bestWindow={MOCK_DASHBOARD.bestWindow}
-            />
+            {searchError && (
+              <ErrorState message={searchError} />
+            )}
 
-            <div className="ui-span-all">
-              <RecommendedTargetCard
-                target={
-                  MOCK_DASHBOARD.recommendedTarget
-                }
-              />
+            <div className="ui-grid">
+              <ResourceCard
+                title="Observing status"
+                className="ui-span-2"
+                resource={forecast}
+                idleMessage={SEARCH_PROMPT}
+                loadingMessage="Loading tonight's forecast..."
+              >
+                {(data) => (
+                  <ObservingStatusCard forecast={data} />
+                )}
+              </ResourceCard>
+
+              <ResourceCard
+                title="Best window"
+                resource={forecast}
+                idleMessage={SEARCH_PROMPT}
+                loadingMessage="Loading tonight's forecast..."
+                isEmpty={(data) => data.best_window === null}
+                emptyMessage="No hourly readings were available for tonight."
+              >
+                {(data) => data.best_window && (
+                  <BestWindowCard
+                    bestWindow={data.best_window}
+                    hourly={data.hourly}
+                  />
+                )}
+              </ResourceCard>
+
+              <div className="ui-span-all">
+                <PlaceholderCard
+                  title="Recommended target"
+                  message="Object recommendations arrive in Week 6, once object-specific scores exist."
+                />
+              </div>
             </div>
           </div>
         </PageSection>
@@ -51,37 +229,66 @@ function Dashboard() {
           description="Global geomagnetic conditions, not a local aurora forecast."
         >
           <div className="ui-grid">
-            <MoonCard
-              moon={MOCK_DASHBOARD.moon}
+            <PlaceholderCard
+              title="Moon"
+              message="Moon phase, illumination, and moonrise and moonset times arrive in Week 6."
             />
 
-            <GeomagneticCard
-              snapshot={
-                MOCK_DASHBOARD.geomagnetic
-              }
-            />
+            <ResourceCard
+              title="Geomagnetic activity"
+              resource={current}
+              loadingMessage="Loading NOAA geomagnetic data..."
+            >
+              {(data) => (
+                <GeomagneticCard
+                  current={data}
+                  risk={risk}
+                />
+              )}
+            </ResourceCard>
 
-            <LatestAlertCard
-              alert={
-                MOCK_DASHBOARD.latestAlert
-              }
-            />
+            <ResourceCard
+              title="Latest alert"
+              resource={latestAlert}
+              loadingMessage="Loading NOAA alerts..."
+            >
+              {(data) => (
+                <LatestAlertCard
+                  alert={data.alerts[0] ?? null}
+                />
+              )}
+            </ResourceCard>
           </div>
         </PageSection>
 
         <PageSection
           title="Recent movement"
-          description="The last 24 hours of stored observations."
+          description="Stored observations from the last 24 hours."
         >
           <div className="ui-grid">
-            {MOCK_DASHBOARD.trends.map(
-              (trend) => (
-                <MiniTrendCard
-                  key={trend.metric}
-                  trend={trend}
-                />
-              )
-            )}
+            <ResourceCard
+              title="Planetary Kp"
+              resource={kpSummary}
+              loadingMessage="Loading the Kp trend..."
+              isEmpty={(summary) => summary === null}
+              emptyMessage="No Kp readings were stored in the last 24 hours."
+            >
+              {(summary) => summary && (
+                <MiniTrendCard trend={summary} />
+              )}
+            </ResourceCard>
+
+            <ResourceCard
+              title="Solar wind speed"
+              resource={solarWindSummary}
+              loadingMessage="Loading the solar-wind trend..."
+              isEmpty={(summary) => summary === null}
+              emptyMessage="No solar-wind speed readings were stored in the last 24 hours."
+            >
+              {(summary) => summary && (
+                <MiniTrendCard trend={summary} />
+              )}
+            </ResourceCard>
           </div>
         </PageSection>
       </div>

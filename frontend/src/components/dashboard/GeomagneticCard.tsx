@@ -9,16 +9,31 @@ import {
 } from "../ui/severity";
 
 import type {
-  GeomagneticSnapshot,
-} from "../../data/mockDashboard";
+  CurrentSpaceWeatherResponse,
+  CurrentSpaceWeatherRiskResponse,
+} from "../../api/types/spaceWeather";
+
+import type {
+  ApiResource,
+} from "../../hooks/useApiResource";
+
+import {
+  formatUtc,
+} from "../../utils/format";
 
 type GeomagneticCardProps = {
-  snapshot: GeomagneticSnapshot;
+  current: CurrentSpaceWeatherResponse;
+  // The risk assessment is a separate request. It is shown when it
+  // arrives, and its failure leaves the rest of the card in place.
+  risk: ApiResource<CurrentSpaceWeatherRiskResponse>;
 };
 
 function GeomagneticCard({
-  snapshot,
+  current,
+  risk,
 }: GeomagneticCardProps) {
+  const activity = current.geomagnetic_activity;
+
   return (
     <Card>
       <div className="ui-stack">
@@ -27,40 +42,52 @@ function GeomagneticCard({
         </span>
 
         <span className="ui-headline">
-          Kp {snapshot.kp.toFixed(2)}
+          Kp {current.facts.kp.toFixed(2)}
         </span>
 
         <div className="ui-badge-row">
           <SeverityBadge
-            label={snapshot.activityLabel}
+            label={activity.label}
             tone={toneForActivityLevel(
-              snapshot.activityLevel
+              activity.level
             )}
           />
 
-          {snapshot.noaaScale && (
+          {activity.noaa_scale && (
             <SeverityBadge
-              label={snapshot.noaaScale}
+              label={activity.noaa_scale}
               tone={toneForNoaaScale(
-                snapshot.noaaScale
+                activity.noaa_scale
               )}
             />
           )}
 
-          <SeverityBadge
-            label={`${snapshot.riskLevel} risk`}
-            tone={toneForRiskLevel(
-              snapshot.riskLevel
-            )}
-          />
+          {risk.status === "ready" && (
+            <SeverityBadge
+              label={`${risk.data.risk.level} risk`}
+              tone={toneForRiskLevel(
+                risk.data.risk.level
+              )}
+            />
+          )}
         </div>
 
+        {risk.status === "error" && (
+          <p className="ui-caption">
+            Risk assessment unavailable: {risk.message}
+          </p>
+        )}
+
         <DataFreshness
-          status={snapshot.freshnessStatus}
+          status={current.freshness.status}
           ageMinutes={
-            snapshot.freshnessAgeMinutes
+            current.freshness.age_minutes
           }
         />
+
+        <p className="ui-caption">
+          Observed {formatUtc(current.observed_at)}
+        </p>
       </div>
     </Card>
   );

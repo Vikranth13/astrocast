@@ -105,9 +105,17 @@ Returns name, region, country, latitude, longitude, and timezone. Only the first
 |---|---|---|---|
 | `city` | string | Yes | Minimum length 2 |
 
-Returns `location`, `forecast_time`, `conditions` (cloud cover, precipitation probability, temperature, wind speed, visibility), and `stargazing` (score, rating, explanation).
+The response contract is `ForecastResponse` in `backend/schemas/observe.py`. It contains:
 
-This route calls Open-Meteo live, so it is the one place a network failure is visible to the user. Upstream failures return 502.
+- `location`: the matched place, with its time zone.
+- `forecast_time` and `conditions`: the headline hour, 22:00 on the first forecast day, and its cloud cover, precipitation probability, temperature, wind speed, and visibility.
+- `stargazing`: the score and rating for that hour, the explanation, `limiting_factor` (the label of the limiting condition that costs the most points, or `null`), and `factors`. Each factor gives its label, measured value and unit, the `penalty` it subtracted, `is_limiting`, and a note that reuses the explanation's wording.
+- `hourly`: every hour of the observing night, scored with the same rules. The night is a fixed window from 18:00 for twelve readings, until Week 6 adds real sunset and twilight times.
+- `best_window`: the longest run of consecutive hours rated Good or better (60 and above), with the earliest run winning a tie. When no hour reaches Good, it is the single best hour with `qualifies: false`. It is `null` only when no hourly readings exist.
+
+All times are Open-Meteo local times for the location, such as `2026-10-19T22:00`, with no UTC offset.
+
+This route calls Open-Meteo live, so it is the one place a network failure is visible to the user. Upstream failures return 502 with a fixed message; the upstream error detail is written to the server log only.
 
 ### `GET /apod`
 

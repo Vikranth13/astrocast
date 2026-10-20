@@ -24,6 +24,36 @@ import {
 } from "./layout/navigation";
 
 
+// Routing tests only need each page's layout. Requests that never settle
+// keep every data card in its loading state for the length of the test.
+// The factories are hoisted above this file's other code, so each one
+// builds its own pending promise.
+vi.mock(
+  "./api/observeApi",
+  () => ({
+    getForecast: vi.fn(
+      () => new Promise(() => {})
+    ),
+  })
+);
+
+vi.mock(
+  "./api/spaceWeatherApi",
+  () => {
+    const pending = () => new Promise(() => {});
+
+    return {
+      getCurrentSpaceWeather: vi.fn(pending),
+      getCurrentSpaceWeatherRisk: vi.fn(pending),
+      getKpTrend: vi.fn(pending),
+      getSolarWindTrend: vi.fn(pending),
+      getSpaceWeatherAlert: vi.fn(pending),
+      listSpaceWeatherAlerts: vi.fn(pending),
+    };
+  }
+);
+
+
 function renderAt(path: string) {
   return render(
     <MemoryRouter

@@ -49,6 +49,33 @@ export function formatUtcDay(
   return `${MONTHS[date.getUTCMonth()]} ${date.getUTCDate()}`;
 }
 
+// Forecast times are local to the searched city and carry no offset, for
+// example "2026-10-19T22:00". Converting them through Date would shift
+// them into the viewer's time zone, so the hour is read from the text.
+export function formatLocalHour(
+  localTime: string
+): string {
+  const match = /T(\d{2}:\d{2})/.exec(localTime);
+
+  return match ? match[1] : localTime;
+}
+
+const MISSING_VALUE = "—";
+
+// A percent sign sits against the number; every other unit is spaced.
+export function formatMeasurement(
+  value: number | null,
+  unit: string
+): string {
+  if (value === null) {
+    return MISSING_VALUE;
+  }
+
+  return unit === "%"
+    ? `${value}%`
+    : `${value} ${unit}`;
+}
+
 export function formatSource(
   source: string
 ): string {

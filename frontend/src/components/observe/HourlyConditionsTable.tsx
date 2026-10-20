@@ -1,13 +1,18 @@
 import Meter from "../ui/Meter";
 
 import type {
-  HourlyCondition,
-} from "../../data/mockObserveTonight";
+  HourlyForecast,
+} from "../../api/types/observe";
+
+import {
+  formatLocalHour,
+  formatMeasurement,
+} from "../../utils/format";
 
 import "./observe.css";
 
 type HourlyConditionsTableProps = {
-  hours: HourlyCondition[];
+  hours: HourlyForecast[];
 };
 
 function HourlyConditionsTable({
@@ -38,23 +43,35 @@ function HourlyConditionsTable({
           {hours.map((hour) => (
             <tr key={hour.time}>
               <th scope="row">
-                {hour.time}
+                {formatLocalHour(hour.time)}
               </th>
 
               <td>
-                {hour.cloudCoverPercent}%
+                {formatMeasurement(
+                  hour.cloud_cover_percent,
+                  "%"
+                )}
               </td>
 
               <td>
-                {hour.precipitationProbabilityPercent}%
+                {formatMeasurement(
+                  hour.precipitation_probability_percent,
+                  "%"
+                )}
               </td>
 
               <td>
-                {hour.windSpeedMph} mph
+                {formatMeasurement(
+                  hour.wind_speed_mph,
+                  "mph"
+                )}
               </td>
 
               <td>
-                {hour.visibilityMiles} mi
+                {formatMeasurement(
+                  hour.visibility_miles,
+                  "mi"
+                )}
               </td>
 
               <td>

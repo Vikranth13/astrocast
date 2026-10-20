@@ -5,10 +5,74 @@ import {
 } from "vitest";
 
 import {
+  formatLocalHour,
+  formatMeasurement,
   formatSource,
   formatUtc,
   formatUtcDay,
 } from "./format";
+
+
+describe(
+  "formatMeasurement",
+  () => {
+    it(
+      "attaches a percent sign and spaces other units",
+      () => {
+        expect(
+          formatMeasurement(35, "%")
+        ).toBe("35%");
+
+        expect(
+          formatMeasurement(18, "mph")
+        ).toBe("18 mph");
+      }
+    );
+
+
+    it(
+      "marks a missing reading instead of showing zero",
+      () => {
+        expect(
+          formatMeasurement(null, "%")
+        ).toBe("—");
+      }
+    );
+  }
+);
+
+
+describe(
+  "formatLocalHour",
+  () => {
+    it(
+      "reads the hour without shifting time zones",
+      () => {
+        expect(
+          formatLocalHour(
+            "2026-10-19T22:00"
+          )
+        ).toBe("22:00");
+
+        expect(
+          formatLocalHour(
+            "2026-10-20T03:00"
+          )
+        ).toBe("03:00");
+      }
+    );
+
+
+    it(
+      "returns unrecognised input unchanged",
+      () => {
+        expect(
+          formatLocalHour("tonight")
+        ).toBe("tonight");
+      }
+    );
+  }
+);
 
 
 describe(

@@ -4,16 +4,25 @@ import Card from "../ui/Card";
 import Meter from "../ui/Meter";
 
 import type {
-  ObservingStatus,
-} from "../../data/mockDashboard";
+  ForecastResponse,
+} from "../../api/types/observe";
+
+import {
+  formatLocalHour,
+} from "../../utils/format";
 
 type ObservingStatusCardProps = {
-  status: ObservingStatus;
+  forecast: ForecastResponse;
 };
 
 function ObservingStatusCard({
-  status,
+  forecast,
 }: ObservingStatusCardProps) {
+  const {
+    location,
+    stargazing,
+  } = forecast;
+
   return (
     <Card className="ui-span-2">
       <div className="ui-stack">
@@ -22,19 +31,32 @@ function ObservingStatusCard({
         </span>
 
         <ScoreReadout
-          score={status.score}
-          rating={status.rating}
+          score={stargazing.score}
+          rating={stargazing.rating}
         />
 
-        <Meter percent={status.score} />
+        <Meter percent={stargazing.score} />
 
         <p className="ui-muted">
-          {status.summary}
+          {stargazing.explanation}
         </p>
 
         <p className="ui-muted">
-          Limiting factor:{" "}
-          {status.limitingFactor}
+          {stargazing.limiting_factor
+            ? `Limiting factor: ${stargazing.limiting_factor}`
+            : "No condition is holding the score back."}
+        </p>
+
+        <p className="ui-caption">
+          {location.name}
+          {location.region
+            ? `, ${location.region}`
+            : ""}
+          {" "}at{" "}
+          {formatLocalHour(
+            forecast.forecast_time
+          )}{" "}
+          local time
         </p>
       </div>
     </Card>

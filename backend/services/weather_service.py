@@ -4,7 +4,10 @@ import requests
 from fastapi import HTTPException
 
 from config import settings
-from services.scoring_service import calculate_stargazing_score
+from services.scoring_service import (
+    calculate_stargazing_score,
+    find_best_window,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -26,6 +29,13 @@ WEATHER_UNAVAILABLE_MESSAGE = (
     "The weather forecast service could not be "
     "reached. Try again in a few minutes."
 )
+
+# The observing night is a fixed local-time window until Week 6 adds
+# real sunset and astronomical twilight times: twelve hourly readings
+# from 18:00 on the first forecast day through 05:00 the next morning.
+OBSERVING_NIGHT_START_HOUR = 18
+
+OBSERVING_NIGHT_HOURS = 12
 
 def geocode_city(city: str):
     """
@@ -168,6 +178,126 @@ def get_value(hourly_data: dict, key: str, index: int):
     return values[index]
 
 
+def extract_conditions(
+    hourly_data: dict,
+    index: int,
+) -> dict:
+    """
+    Read the AstroCast weather conditions for one hourly reading.
+    """
+
+    visibility_meters = get_value(
+        hourly_data,
+        "visibility",
+        index,
+    )
+
+    return {
+        "cloud_cover_percent": get_value(
+            hourly_data,
+            "cloud_cover",
+            index,
+        ),
+        "precipitation_probability_percent": get_value(
+            hourly_data,
+            "precipitation_probability",
+            index,
+        ),
+        "temperature_f": get_value(
+            hourly_data,
+            "temperature_2m",
+            index,
+        ),
+        "wind_speed_mph": get_value(
+            hourly_data,
+            "wind_speed_10m",
+            index,
+        ),
+        "visibility_miles": meters_to_miles(
+            visibility_meters
+        ),
+    }
+
+
+def select_observing_night(
+    hourly_data: dict,
+) -> list[int]:
+    """
+    Return the indexes of the hourly readings that make up tonight.
+
+    The night starts at OBSERVING_NIGHT_START_HOUR on the first forecast
+    day and runs for OBSERVING_NIGHT_HOURS readings, crossing midnight.
+    It is cut short if the forecast ends sooner, and is empty if the
+    start hour is missing.
+    """
+
+    times = hourly_data.get("time", [])
+
+    if not times:
+        return []
+
+    first_date = times[0].split("T")[0]
+
+    start_time = (
+        f"{first_date}T"
+        f"{OBSERVING_NIGHT_START_HOUR:02d}:00"
+    )
+
+    if start_time not in times:
+        return []
+
+    start_index = times.index(start_time)
+
+    end_index = min(
+        start_index + OBSERVING_NIGHT_HOURS,
+        len(times),
+    )
+
+    return list(
+        range(
+            start_index,
+            end_index,
+        )
+    )
+
+
+def build_hourly_forecast(
+    hourly_data: dict,
+    indexes: list[int],
+) -> list[dict]:
+    """
+    Score every hour of the observing night with the same rules as the
+    headline score.
+    """
+
+    hours = []
+
+    for index in indexes:
+        conditions = extract_conditions(
+            hourly_data,
+            index,
+        )
+
+        stargazing = calculate_stargazing_score(
+            conditions
+        )
+
+        hours.append(
+            {
+                "time": get_value(
+                    hourly_data,
+                    "time",
+                    index,
+                ),
+                **conditions,
+                "score": stargazing["score"],
+                "rating": stargazing["rating"],
+            }
+        )
+
+    return hours
+
+
 def get_forecast_for_city(city: str):
     """
     Main function used by the /forecast route.
@@ -175,8 +305,12 @@ def get_forecast_for_city(city: str):
     Steps:
     1. Convert city to coordinates.
     2. Fetch weather using coordinates.
-    3. Extract the forecast for tonight.
+    3. Extract the forecast for tonight, and score every hour of the
+       observing night.
     4. Return clean AstroCast-shaped JSON.
+
+    All times are local to the location and carry no UTC offset, because
+    that is how Open-Meteo returns them when given a timezone.
     """
 
     location = geocode_city(city)
@@ -190,25 +324,23 @@ def get_forecast_for_city(city: str):
     hourly = raw_weather.get("hourly", {})
     forecast_index = select_tonight_forecast(hourly)
 
-    visibility_meters = get_value(hourly, "visibility", forecast_index)
-
-    conditions = {
-        "cloud_cover_percent": get_value(hourly, "cloud_cover", forecast_index),
-        "precipitation_probability_percent": get_value(
-            hourly,
-            "precipitation_probability",
-            forecast_index,
-        ),
-        "temperature_f": get_value(hourly, "temperature_2m", forecast_index),
-        "wind_speed_mph": get_value(hourly, "wind_speed_10m", forecast_index),
-        "visibility_miles": meters_to_miles(visibility_meters),
-    }
+    conditions = extract_conditions(
+        hourly,
+        forecast_index,
+    )
 
     stargazing = calculate_stargazing_score(conditions)
+
+    night = build_hourly_forecast(
+        hourly,
+        select_observing_night(hourly),
+    )
 
     return {
         "location": location,
         "forecast_time": get_value(hourly, "time", forecast_index),
         "conditions": conditions,
         "stargazing": stargazing,
+        "hourly": night,
+        "best_window": find_best_window(night),
     }

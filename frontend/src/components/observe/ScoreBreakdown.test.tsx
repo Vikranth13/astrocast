@@ -12,28 +12,29 @@ import {
 import ScoreBreakdown from "./ScoreBreakdown";
 
 import {
-  MOCK_OBSERVE_TONIGHT,
-} from "../../data/mockObserveTonight";
+  FORECAST_FIXTURE,
+} from "../../test/forecastFixture";
+
+
+const FACTORS = FORECAST_FIXTURE.stargazing.factors;
 
 
 describe(
   "ScoreBreakdown",
   () => {
     it(
-      "lists every scoring factor",
+      "lists every scoring factor by its label",
       () => {
         render(
           <ScoreBreakdown
-            factors={
-              MOCK_OBSERVE_TONIGHT.factors
-            }
+            factors={FACTORS}
           />
         );
 
-        for (const factor of MOCK_OBSERVE_TONIGHT.factors) {
+        for (const factor of FACTORS) {
           expect(
             screen.getByText(
-              factor.factor
+              factor.label
             )
           ).toBeInTheDocument();
         }
@@ -46,15 +47,19 @@ describe(
       () => {
         render(
           <ScoreBreakdown
-            factors={
-              MOCK_OBSERVE_TONIGHT.factors
-            }
+            factors={FACTORS}
           />
         );
 
         expect(
           screen.getByText(
-            /35%, costs 24\.5 points/
+            /16 mph, costs 8 points/
+          )
+        ).toBeInTheDocument();
+
+        expect(
+          screen.getByText(
+            /10 mi, no penalty/
           )
         ).toBeInTheDocument();
       }
@@ -62,26 +67,52 @@ describe(
 
 
     it(
-      "badges only the limiting factors",
+      "badges only the factors the backend marks as limiting",
       () => {
         render(
           <ScoreBreakdown
-            factors={
-              MOCK_OBSERVE_TONIGHT.factors
-            }
+            factors={FACTORS}
           />
         );
 
-        const limitingCount =
-          MOCK_OBSERVE_TONIGHT.factors.filter(
-            (factor) => factor.isLimiting
-          ).length;
+        const limitingCount = FACTORS.filter(
+          (factor) => factor.is_limiting
+        ).length;
 
         expect(
           screen.getAllByText(
             "Limiting factor"
           )
         ).toHaveLength(limitingCount);
+      }
+    );
+
+
+    it(
+      "keeps every bar empty on a night with no penalties",
+      () => {
+        const { container } = render(
+          <ScoreBreakdown
+            factors={FACTORS.map(
+              (factor) => ({
+                ...factor,
+                penalty: 0,
+              })
+            )}
+          />
+        );
+
+        // Dividing by a largest penalty of zero would give NaN, which
+        // the browser drops as an invalid width.
+        const fills = container.querySelectorAll<HTMLElement>(
+          ".ui-meter-fill"
+        );
+
+        expect(fills).toHaveLength(FACTORS.length);
+
+        for (const fill of fills) {
+          expect(fill.style.width).toBe("0%");
+        }
       }
     );
   }

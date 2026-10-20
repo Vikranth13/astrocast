@@ -6,6 +6,8 @@ import {
 
 import {
   afterEach,
+  beforeEach,
+  vi,
 } from "vitest";
 
 class ResizeObserverStub {
@@ -32,6 +34,20 @@ Object.defineProperty(
   }
 );
 
+// No test may reach the network, where a real server could answer. A
+// test that needs a response mocks the API module or stubs fetch itself,
+// which replaces this guard for that test.
+beforeEach(() => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(() => Promise.reject(
+      new TypeError("Network access is disabled in tests.")
+    ))
+  );
+});
+
 afterEach(() => {
   cleanup();
+
+  vi.unstubAllGlobals();
 });

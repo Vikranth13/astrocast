@@ -10,6 +10,7 @@ import pytest
 
 from services.scoring_service import (
     calculate_stargazing_score,
+    find_best_window,
     get_rating,
 )
 
@@ -157,3 +158,172 @@ def test_partial_data_only_explains_what_was_measured() -> None:
     assert "cloud cover is very high" in explanation
     assert "wind" not in explanation
     assert "visibility" not in explanation
+
+
+# ---------------------------------------------------------------
+# Factor breakdown
+# ---------------------------------------------------------------
+
+def factor_named(
+    result: dict,
+    name: str,
+) -> dict:
+    return next(
+        factor
+        for factor in result["factors"]
+        if factor["factor"] == name
+    )
+
+
+def test_factors_carry_the_penalties_the_score_applied() -> None:
+    result = calculate_stargazing_score(
+        MIXED_NIGHT
+    )
+
+    assert [
+        factor["factor"]
+        for factor in result["factors"]
+    ] == [
+        "cloud_cover",
+        "precipitation_probability",
+        "wind_speed",
+        "visibility",
+    ]
+
+    assert factor_named(result, "cloud_cover")["penalty"] == 38.5
+    assert factor_named(result, "precipitation_probability")["penalty"] == 6.0
+    assert factor_named(result, "wind_speed")["penalty"] == 0
+    assert factor_named(result, "visibility")["penalty"] == 0
+
+    total_penalty = sum(
+        factor["penalty"]
+        for factor in result["factors"]
+    )
+
+    assert result["score"] == round(100 - total_penalty)
+
+
+def test_factor_notes_reuse_the_explanation_phrases() -> None:
+    result = calculate_stargazing_score(
+        MIXED_NIGHT
+    )
+
+    cloud = factor_named(result, "cloud_cover")
+
+    assert cloud["note"] == "There is moderate cloud cover."
+    assert "there is moderate cloud cover" in result["explanation"]
+
+
+def test_limiting_flags_match_the_explanation_buckets() -> None:
+    result = calculate_stargazing_score(
+        MIXED_NIGHT
+    )
+
+    assert factor_named(result, "cloud_cover")["is_limiting"] is True
+    assert factor_named(result, "precipitation_probability")["is_limiting"] is True
+    assert factor_named(result, "wind_speed")["is_limiting"] is False
+    assert factor_named(result, "visibility")["is_limiting"] is False
+
+
+def test_limiting_factor_is_the_costliest_limiting_condition() -> None:
+    result = calculate_stargazing_score(
+        {
+            "cloud_cover_percent": 45,
+            "wind_speed_mph": 30,
+            "visibility_miles": 2,
+        }
+    )
+
+    # Cloud costs 31.5 points, visibility 20, and wind 15.
+    assert result["limiting_factor"] == "Cloud cover"
+
+
+def test_no_limiting_factor_on_a_clear_night() -> None:
+    result = calculate_stargazing_score(
+        CLEAR_NIGHT
+    )
+
+    assert result["limiting_factor"] is None
+
+
+def test_missing_readings_produce_no_factor() -> None:
+    result = calculate_stargazing_score(
+        {
+            "cloud_cover_percent": 95,
+        }
+    )
+
+    assert [
+        factor["factor"]
+        for factor in result["factors"]
+    ] == [
+        "cloud_cover",
+    ]
+
+
+# ---------------------------------------------------------------
+# Best observing window
+# ---------------------------------------------------------------
+
+def night_of(
+    scores: list[int],
+) -> list[dict]:
+    """
+    Hourly readings from 18:00 with the given scores.
+    """
+
+    return [
+        {
+            "time": f"2026-10-19T{18 + index:02d}:00",
+            "score": score,
+        }
+        for index, score in enumerate(scores)
+    ]
+
+
+def test_best_window_is_the_longest_good_run() -> None:
+    window = find_best_window(
+        night_of([70, 40, 65, 72, 88, 61, 30])
+    )
+
+    assert window["first_hour"] == "2026-10-19T20:00"
+    assert window["last_hour"] == "2026-10-19T23:00"
+    assert window["hour_count"] == 4
+    assert window["peak_time"] == "2026-10-19T22:00"
+    assert window["peak_score"] == 88
+    assert window["peak_rating"] == "Excellent"
+    assert window["qualifies"] is True
+
+
+def test_best_window_tie_goes_to_the_earliest_run() -> None:
+    window = find_best_window(
+        night_of([65, 70, 20, 90, 95])
+    )
+
+    assert window["first_hour"] == "2026-10-19T18:00"
+    assert window["hour_count"] == 2
+
+
+def test_a_score_of_exactly_sixty_counts_as_good() -> None:
+    window = find_best_window(
+        night_of([59, 60, 59])
+    )
+
+    assert window["first_hour"] == "2026-10-19T19:00"
+    assert window["qualifies"] is True
+
+
+def test_night_without_a_good_hour_reports_the_best_single_hour() -> None:
+    window = find_best_window(
+        night_of([20, 52, 45, 52])
+    )
+
+    assert window["first_hour"] == "2026-10-19T19:00"
+    assert window["last_hour"] == "2026-10-19T19:00"
+    assert window["hour_count"] == 1
+    assert window["peak_rating"] == "Okay"
+    assert window["qualifies"] is False
+
+
+def test_empty_night_has_no_window() -> None:
+    assert find_best_window([]) is None

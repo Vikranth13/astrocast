@@ -12,8 +12,11 @@ import {
 import HourlyConditionsTable from "./HourlyConditionsTable";
 
 import {
-  MOCK_OBSERVE_TONIGHT,
-} from "../../data/mockObserveTonight";
+  FORECAST_FIXTURE,
+} from "../../test/forecastFixture";
+
+
+const HOURS = FORECAST_FIXTURE.hourly;
 
 
 describe(
@@ -24,17 +27,14 @@ describe(
       () => {
         render(
           <HourlyConditionsTable
-            hours={
-              MOCK_OBSERVE_TONIGHT.hours
-            }
+            hours={HOURS}
           />
         );
 
         expect(
           screen.getAllByRole("row")
         ).toHaveLength(
-          MOCK_OBSERVE_TONIGHT.hours
-            .length + 1
+          HOURS.length + 1
         );
       }
     );
@@ -45,9 +45,7 @@ describe(
       () => {
         render(
           <HourlyConditionsTable
-            hours={
-              MOCK_OBSERVE_TONIGHT.hours
-            }
+            hours={HOURS}
           />
         );
 
@@ -73,13 +71,11 @@ describe(
 
 
     it(
-      "uses the hour as the row header",
+      "uses the local hour as the row header",
       () => {
         render(
           <HourlyConditionsTable
-            hours={
-              MOCK_OBSERVE_TONIGHT.hours
-            }
+            hours={HOURS}
           />
         );
 
@@ -88,6 +84,42 @@ describe(
             "rowheader",
             {
               name: "22:00",
+            }
+          )
+        ).toBeInTheDocument();
+
+        // After midnight the hour still reads as local time.
+        expect(
+          screen.getByRole(
+            "rowheader",
+            {
+              name: "02:00",
+            }
+          )
+        ).toBeInTheDocument();
+      }
+    );
+
+
+    it(
+      "marks a missing reading instead of showing zero",
+      () => {
+        render(
+          <HourlyConditionsTable
+            hours={[
+              {
+                ...HOURS[0],
+                precipitation_probability_percent: null,
+              },
+            ]}
+          />
+        );
+
+        expect(
+          screen.getByRole(
+            "cell",
+            {
+              name: "—",
             }
           )
         ).toBeInTheDocument();

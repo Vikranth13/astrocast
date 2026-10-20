@@ -9,7 +9,11 @@ import Card from "../ui/Card";
 
 import type {
   MiniTrend,
-} from "../../data/mockDashboard";
+} from "./trendSummary";
+
+import {
+  formatUtc,
+} from "../../utils/format";
 
 import "./dashboard.css";
 
@@ -24,7 +28,7 @@ function formatChange(
   decimals: number
 ): string {
   if (change === 0) {
-    return "unchanged over 24 hours";
+    return "unchanged across the last 24 hours";
   }
 
   const direction =
@@ -32,7 +36,7 @@ function formatChange(
 
   return `${direction} ${Math.abs(change).toFixed(
     decimals
-  )} over 24 hours`;
+  )} across the last 24 hours`;
 }
 
 function MiniTrendCard({
@@ -60,6 +64,11 @@ function MiniTrendCard({
             trend.change,
             trend.decimals
           )}
+        </span>
+
+        <span className="ui-caption">
+          Latest reading{" "}
+          {formatUtc(trend.latestObservedAt)}
         </span>
 
         <div

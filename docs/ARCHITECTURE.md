@@ -76,6 +76,8 @@ Allowed frontend development origins currently include ports `5173` and `5174`.
 - Applies penalties for cloud cover, precipitation, wind, and visibility
 - Assigns a rating
 - Builds a plain-English explanation
+- Returns each factor's penalty and names the costliest limiting factor
+- Finds the best observing window in the scored hours of the night
 
 ### `backend/services/astronomy_service.py`
 

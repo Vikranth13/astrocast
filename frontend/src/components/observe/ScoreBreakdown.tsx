@@ -7,7 +7,11 @@ import type {
 
 import type {
   ScoreFactor,
-} from "../../data/mockObserveTonight";
+} from "../../api/types/observe";
+
+import {
+  formatMeasurement,
+} from "../../utils/format";
 
 import "./observe.css";
 
@@ -32,10 +36,19 @@ function toneForPenalty(
   return "quiet";
 }
 
+function describePenalty(
+  penalty: number
+): string {
+  return penalty === 0
+    ? "no penalty"
+    : `costs ${penalty} points`;
+}
+
 function ScoreBreakdown({
   factors,
 }: ScoreBreakdownProps) {
   const largestPenalty = Math.max(
+    0,
     ...factors.map(
       (factor) => factor.penalty
     )
@@ -50,9 +63,9 @@ function ScoreBreakdown({
         >
           <div className="ui-row">
             <span className="breakdown-name">
-              {factor.factor}
+              {factor.label}
 
-              {factor.isLimiting && (
+              {factor.is_limiting && (
                 <SeverityBadge
                   label="Limiting factor"
                   tone={toneForPenalty(
@@ -63,15 +76,22 @@ function ScoreBreakdown({
             </span>
 
             <span className="ui-caption">
-              {factor.value}, costs{" "}
-              {factor.penalty} points
+              {formatMeasurement(
+                factor.value,
+                factor.unit
+              )}
+              , {describePenalty(factor.penalty)}
             </span>
           </div>
 
+          {/* Bars are relative to the costliest factor. On a night with
+              no penalties at all, every bar is empty. */}
           <Meter
             percent={
-              (factor.penalty / largestPenalty)
-              * 100
+              largestPenalty === 0
+                ? 0
+                : (factor.penalty / largestPenalty)
+                  * 100
             }
             tone="caution"
           />

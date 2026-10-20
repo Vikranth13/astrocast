@@ -59,9 +59,9 @@ Replace mock data with typed real API calls, keeping UI behaviour stable.
 - [x] API client modules by feature.
 - [x] Centralized base URL and error parsing.
 - [x] No direct fetch calls in UI components.
-- [ ] Dashboard connected to the local observing and current space-weather endpoints.
-- [ ] Independent loading and error states, so one failed source does not blank the dashboard.
-- [ ] Data timestamps and freshness shown.
+- [x] Dashboard connected to the local observing and current space-weather endpoints. The Dashboard's latest-alert and mini-trend cards were connected on Day 2 as well; the Alerts and Trends pages remain Days 3 and 4.
+- [x] Independent loading and error states, so one failed source does not blank the dashboard.
+- [x] Data timestamps and freshness shown.
 - [ ] Alert list and detail pages connected.
 - [ ] Filter controls connected to backend query parameters.
 - [ ] Pagination or result limits if needed.
@@ -90,13 +90,13 @@ Fixed during Week 5, outside the listed tasks:
 Quality improvements that must not delay required work.
 
 - [ ] Switch the frontend space-weather card to `explanation_detail` and render caveats distinctly.
-- [ ] Expose the hourly weather series and the per-factor score penalties from the backend. Both are already fetched and computed in `weather_service.py` and `scoring_service.py`, then discarded before the response, which blocks wiring the Observe Tonight hourly table and score breakdown in Week 5.
+- [x] Expose the hourly weather series and the per-factor score penalties from the backend. Done on Week 5 Day 2, together with a best observing window and a Pydantic response model for `/forecast`.
 - [ ] Structured backend logging.
 - [ ] Authenticate the ingestion administration routes.
 - [ ] Scheduled ingestion instead of manual runs.
 - [ ] Location disambiguation for cities sharing a name; show region and country before selection.
 - [ ] Persist searched locations to the `locations` table.
-- [ ] Replace the fixed 10:00 PM forecast hour with the next appropriate local observing time.
+- [ ] Replace the fixed 10:00 PM forecast hour with the next appropriate local observing time. Since Week 5 Day 2 the hourly night (18:00 for twelve readings) and the best window are anchored to the same first forecast day, so a search made late in the evening can report hours that have already passed.
 - [ ] Improve failed-search UI so stale cards cannot be mistaken for valid output.
 - [ ] Update corrected NOAA measurements rather than skipping them.
 - [ ] Frontend TypeScript interfaces regenerated from the OpenAPI schema.
