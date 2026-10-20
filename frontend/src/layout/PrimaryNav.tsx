@@ -12,7 +12,15 @@ import {
   NAVIGATION_ITEMS,
 } from "./navigation";
 
-function PrimaryNav() {
+type PrimaryNavProps = {
+  // The query string the Dashboard last had, so its link returns to the
+  // same city instead of an empty Dashboard.
+  dashboardSearch?: string;
+};
+
+function PrimaryNav({
+  dashboardSearch = "",
+}: PrimaryNavProps) {
   const [isMenuOpen, setIsMenuOpen] =
     useState(false);
 
@@ -61,7 +69,14 @@ function PrimaryNav() {
         {NAVIGATION_ITEMS.map((item) => (
           <li key={item.path}>
             <NavLink
-              to={item.path}
+              to={
+                item.path === "/"
+                  ? {
+                    pathname: item.path,
+                    search: dashboardSearch,
+                  }
+                  : item.path
+              }
               end={item.path === "/"}
               className={({ isActive }) =>
                 isActive

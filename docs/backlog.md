@@ -84,6 +84,7 @@ Replace mock data with typed real API calls, keeping UI behaviour stable.
 Fixed during Week 5, outside the listed tasks:
 
 - [x] `/geocode`, `/forecast`, and `/apod` 502 responses no longer echo upstream exception text. The APOD message had included the request URL, and with it the NASA API key. Found on Day 1, because correct error parsing would have shown that text in the UI.
+- [x] The Dashboard keeps its city and last results when you move to another page and back. The navigation links return to the Dashboard's last address, and its cards show their cached responses at once while fresh ones load. A failed refresh shows the error instead of the cached data.
 
 ## Should
 

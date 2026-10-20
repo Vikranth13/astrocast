@@ -20,8 +20,16 @@ import {
 import App from "./App";
 
 import {
+  getForecast,
+} from "./api/observeApi";
+
+import {
   NAVIGATION_ITEMS,
 } from "./layout/navigation";
+
+import {
+  FORECAST_FIXTURE,
+} from "./test/forecastFixture";
 
 
 // Routing tests only need each page's layout. Requests that never settle
@@ -287,6 +295,88 @@ describe(
         });
 
         focus.mockRestore();
+      }
+    );
+
+
+    it(
+      "returns to the dashboard's city and last results from another page",
+      async () => {
+        const user = userEvent.setup();
+
+        // Only the first request answers. The refresh on the way back
+        // stays pending, so anything on screen then came from the cache.
+        vi.mocked(getForecast).mockResolvedValueOnce(
+          FORECAST_FIXTURE
+        );
+
+        renderAt("/?city=New%20Brunswick");
+
+        await screen.findByText(
+          FORECAST_FIXTURE.stargazing.explanation
+        );
+
+        await user.click(
+          within(getPrimaryNav()).getByRole(
+            "link",
+            {
+              name: "Observe Tonight",
+            }
+          )
+        );
+
+        await screen.findByRole(
+          "heading",
+          {
+            level: 1,
+            name: "Observe Tonight",
+          }
+        );
+
+        const dashboardLink = within(
+          getPrimaryNav()
+        ).getByRole(
+          "link",
+          {
+            name: "Dashboard",
+          }
+        );
+
+        expect(dashboardLink).toHaveAttribute(
+          "href",
+          "/?city=New%20Brunswick"
+        );
+
+        expect(
+          screen.getByRole(
+            "link",
+            {
+              name: "AstroCast",
+            }
+          )
+        ).toHaveAttribute(
+          "href",
+          "/?city=New%20Brunswick"
+        );
+
+        await user.click(dashboardLink);
+
+        expect(
+          screen.getByText(
+            FORECAST_FIXTURE.stargazing.explanation
+          )
+        ).toBeInTheDocument();
+
+        expect(
+          screen.getByRole(
+            "textbox",
+            {
+              name: "City",
+            }
+          )
+        ).toHaveValue("New Brunswick");
+
+        expect(getForecast).toHaveBeenCalledTimes(2);
       }
     );
   }

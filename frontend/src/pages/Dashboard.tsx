@@ -110,13 +110,37 @@ function Dashboard() {
   );
 
   // Every source loads on its own. A failure in one only changes the
-  // cards that depend on it.
-  const forecast = useApiResource(loadForecast);
-  const current = useApiResource(getCurrentSpaceWeather);
-  const risk = useApiResource(getCurrentSpaceWeatherRisk);
-  const latestAlert = useApiResource(loadLatestAlert);
-  const kpTrend = useApiResource(loadKpLastDay);
-  const solarWindTrend = useApiResource(loadSolarWindLastDay);
+  // cards that depend on it. The cache keys let the page show its last
+  // results straight away when you come back to it from another page.
+  const forecast = useApiResource(
+    loadForecast,
+    `forecast:${city}`
+  );
+
+  const current = useApiResource(
+    getCurrentSpaceWeather,
+    "space-weather:current"
+  );
+
+  const risk = useApiResource(
+    getCurrentSpaceWeatherRisk,
+    "space-weather:risk"
+  );
+
+  const latestAlert = useApiResource(
+    loadLatestAlert,
+    "alerts:latest"
+  );
+
+  const kpTrend = useApiResource(
+    loadKpLastDay,
+    "trends:kp:last-day"
+  );
+
+  const solarWindTrend = useApiResource(
+    loadSolarWindLastDay,
+    "trends:solar-wind:last-day"
+  );
 
   const kpSummary = mapResource(
     kpTrend,

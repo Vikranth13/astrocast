@@ -1,6 +1,7 @@
 import {
   useEffect,
   useRef,
+  useState,
 } from "react";
 
 import {
@@ -14,8 +15,35 @@ import "./AppShell.css";
 
 import PrimaryNav from "./PrimaryNav";
 
+const DASHBOARD_PATH = "/";
+
 function AppShell() {
-  const { pathname } = useLocation();
+  const {
+    pathname,
+    search,
+  } = useLocation();
+
+  // The Dashboard keeps its city in the address. The shell outlives every
+  // page, so it remembers that address and links back to it, and leaving
+  // the Dashboard for another page does not lose the city.
+  const [dashboardSearch, setDashboardSearch] =
+    useState(
+      pathname === DASHBOARD_PATH
+        ? search
+        : ""
+    );
+
+  if (
+    pathname === DASHBOARD_PATH
+    && search !== dashboardSearch
+  ) {
+    setDashboardSearch(search);
+  }
+
+  const dashboardLink = {
+    pathname: DASHBOARD_PATH,
+    search: dashboardSearch,
+  };
 
   const mainRef = useRef<HTMLElement>(null);
 
@@ -53,13 +81,13 @@ function AppShell() {
 
       <header className="app-header">
         <Link
-          to="/"
+          to={dashboardLink}
           className="app-brand"
         >
           AstroCast
         </Link>
 
-        <PrimaryNav />
+        <PrimaryNav dashboardSearch={dashboardSearch} />
       </header>
 
       <main

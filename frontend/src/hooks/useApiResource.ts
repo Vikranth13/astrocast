@@ -31,6 +31,15 @@ type SettledResource<T> = {
 
 const FALLBACK_ERROR_MESSAGE = "Something went wrong.";
 
+// The last successful response for each cache key, kept in memory for as
+// long as the page is open. A reload starts empty.
+const responseCache = new Map<string, unknown>();
+
+// Tests call this between cases so one test never sees another's data.
+export function clearApiResourceCache(): void {
+  responseCache.clear();
+}
+
 // Reshapes ready data and passes every other state through, so a card
 // can render a summary of a response without losing its loading and
 // error states.
@@ -53,8 +62,15 @@ export function mapResource<T, U>(
 // until a city has been chosen. The loader must keep the same identity
 // between renders (a module-level function, or one from useMemo) or it
 // will be called again on every render.
+//
+// With a cache key, a page that is left and opened again shows the last
+// response at once while a fresh request runs, then shows the fresh one.
+// If that request fails, the error replaces the cached data rather than
+// letting an old response pass for a current one. A key must always
+// stand for the same request.
 export function useApiResource<T>(
-  load: ApiLoader<T> | null
+  load: ApiLoader<T> | null,
+  cacheKey?: string
 ): ApiResource<T> {
   const [settled, setSettled] =
     useState<SettledResource<T> | null>(
@@ -72,6 +88,13 @@ export function useApiResource<T>(
 
     load().then(
       (data) => {
+        if (cacheKey !== undefined) {
+          responseCache.set(
+            cacheKey,
+            data
+          );
+        }
+
         if (!ignoreResult) {
           setSettled({
             load,
@@ -101,7 +124,7 @@ export function useApiResource<T>(
     return () => {
       ignoreResult = true;
     };
-  }, [load]);
+  }, [load, cacheKey]);
 
   if (load === null) {
     return {
@@ -109,13 +132,24 @@ export function useApiResource<T>(
     };
   }
 
+  if (settled !== null && settled.load === load) {
+    return settled.outcome;
+  }
+
   // Loading is derived rather than stored: until this loader settles,
-  // whatever is in state belongs to an earlier one.
-  if (settled === null || settled.load !== load) {
+  // whatever is in state belongs to an earlier one. A cached response
+  // for the same key fills the gap.
+  if (
+    cacheKey !== undefined
+    && responseCache.has(cacheKey)
+  ) {
     return {
-      status: "loading",
+      status: "ready",
+      data: responseCache.get(cacheKey) as T,
     };
   }
 
-  return settled.outcome;
+  return {
+    status: "loading",
+  };
 }

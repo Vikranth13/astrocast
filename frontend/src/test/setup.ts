@@ -10,6 +10,10 @@ import {
   vi,
 } from "vitest";
 
+import {
+  clearApiResourceCache,
+} from "../hooks/useApiResource";
+
 class ResizeObserverStub {
   observe() {}
 
@@ -50,4 +54,7 @@ afterEach(() => {
   cleanup();
 
   vi.unstubAllGlobals();
+
+  // Cached responses would otherwise carry over into the next test.
+  clearApiResourceCache();
 });
