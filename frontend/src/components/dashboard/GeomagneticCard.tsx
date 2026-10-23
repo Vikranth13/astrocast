@@ -21,6 +21,10 @@ import {
   formatUtc,
 } from "../../utils/format";
 
+import {
+  formatMeasurementValue,
+} from "../../utils/measurements";
+
 type GeomagneticCardProps = {
   current: CurrentSpaceWeatherResponse;
   // The risk assessment is a separate request. It is shown when it
@@ -42,7 +46,7 @@ function GeomagneticCard({
         </span>
 
         <span className="ui-headline">
-          Kp {current.facts.kp.toFixed(2)}
+          Kp {formatMeasurementValue("kp", current.facts.kp)}
         </span>
 
         <div className="ui-badge-row">

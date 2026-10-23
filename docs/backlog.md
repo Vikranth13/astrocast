@@ -66,9 +66,9 @@ Replace mock data with typed real API calls, keeping UI behaviour stable.
 - [x] Filter controls connected to backend query parameters. The TypeScript copy of the filtering was removed.
 - [x] Pagination or result limits if needed. Needed: 222 alerts were stored on Day 3. The list endpoint gained `offset` and `total`, and the page shows 25 at a time.
 - [x] No-results and expired-alert states.
-- [ ] Kp and solar-wind trends connected. The Space Weather page, still on mock data, goes live with Trends on Day 4.
-- [ ] Units and timestamps formatted consistently.
-- [ ] Accessible chart labels and text summaries.
+- [x] Kp and solar-wind trends connected. Solar wind is charted as hourly averages from a new `interval=hour` mode, the chart's threshold lines now come from the backend, and the Space Weather page is live as well. No page reads mock data any more; the fixtures moved under `src/test/`.
+- [x] Units and timestamps formatted consistently. One measurement table in `utils/measurements.ts`; NOAA times always in UTC, forecast times always marked local.
+- [x] Accessible chart labels and text summaries. Charts sit on a real time axis over the stated window, break the line across missing data, and say in text how many hours are empty.
 - [ ] Forecast snapshots saved when appropriate.
 - [ ] Recent searches or location history endpoint, without user accounts.
 - [ ] Recent forecast comparisons or a small history list.

@@ -1,48 +1,113 @@
-import TrendLineChart from "../components/trends/TrendLineChart";
+import {
+  useMemo,
+  useState,
+} from "react";
+
+import {
+  getKpTrend,
+  getSolarWindTrend,
+} from "../api/spaceWeatherApi";
+
+import type {
+  TrendThreshold,
+} from "../api/types/spaceWeather";
+
+import SourceState from "../components/SourceState";
+
+import TrendLineChart, {
+  type ChartThreshold,
+} from "../components/trends/TrendLineChart";
 
 import Card from "../components/ui/Card";
 import PageSection from "../components/ui/PageSection";
 
 import {
-  MOCK_KP_TREND,
-  MOCK_SOLAR_WIND_TREND,
-} from "../data/mockTrends";
+  useApiResource,
+} from "../hooks/useApiResource";
 
 import {
   formatSource,
 } from "../utils/format";
 
-// These mirror the thresholds in
-// backend/services/space_weather_risk_service.py, so the lines on the
-// charts are the same lines the risk engine applies.
-const G1_THRESHOLD = 4.67;
+const WINDOW_DAYS = 7;
 
-const SOLAR_WIND_ELEVATED_SPEED_KM_S = 500;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
-const SOLAR_WIND_ELEVATED_DENSITY_PER_CM3 = 10;
+const WINDOW_LABEL = "Past 7 days";
 
 const KP_TICKS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
 
-function formatKp(
-  value: number
-): string {
-  return value.toFixed(2);
+// NOAA publishes Kp every three hours, so readings further apart than
+// that mean some were not stored.
+const KP_INTERVAL_MINUTES = 180;
+
+const HOURLY_AVERAGES = {
+  one: "hourly average",
+  many: "hourly averages",
+};
+
+const HOURS = {
+  one: "hour",
+  many: "hours",
+};
+
+type TrendWindow = {
+  start: string;
+  end: string;
+};
+
+function pastWeek(): TrendWindow {
+  const end = Date.now();
+
+  return {
+    start: new Date(end - WINDOW_DAYS * DAY_MS).toISOString(),
+    end: new Date(end).toISOString(),
+  };
+}
+
+// The backend sends the thresholds for every factor in the response.
+// Each chart draws only its own.
+function linesFor(
+  thresholds: TrendThreshold[],
+  factor: string
+): ChartThreshold[] {
+  return thresholds
+    .filter((threshold) => threshold.factor === factor)
+    .map((threshold) => ({
+      value: threshold.value,
+      label: threshold.label,
+    }));
 }
 
 function Trends() {
-  const speedPoints = MOCK_SOLAR_WIND_TREND.points.map(
-    (point) => ({
-      observed_at: point.observed_at,
-      value: point.speed_km_s,
-    })
+  // Fixed when the page opens, so every chart covers the same week.
+  const [trendWindow] = useState(pastWeek);
+
+  const loadKp = useMemo(
+    () => () => getKpTrend({
+      start: trendWindow.start,
+      end: trendWindow.end,
+    }),
+    [trendWindow]
   );
 
-  const densityPoints = MOCK_SOLAR_WIND_TREND.points.map(
-    (point) => ({
-      observed_at: point.observed_at,
-      value: point.density_per_cm3,
-    })
+  const loadSolarWind = useMemo(
+    () => () => getSolarWindTrend({
+      start: trendWindow.start,
+      end: trendWindow.end,
+      interval: "hour",
+    }),
+    [trendWindow]
   );
+
+  const kpTrend = useApiResource(loadKp);
+  const solarWindTrend = useApiResource(loadSolarWind);
+
+  const windowProps = {
+    windowStart: trendWindow.start,
+    windowEnd: trendWindow.end,
+    windowLabel: WINDOW_LABEL,
+  };
 
   return (
     <section className="page">
@@ -56,70 +121,98 @@ function Trends() {
       <div className="page-sections">
         <PageSection
           title="Planetary K-index"
-          description="The three-hour global geomagnetic index, from 0 to 9. From 4.67 upward, NOAA classes it as a G1 storm."
+          description="The three-hour global geomagnetic index, from 0 to 9. NOAA classes it as a geomagnetic storm from G1 upward."
         >
           <Card>
-            <TrendLineChart
-              title="Planetary K-index"
-              points={MOCK_KP_TREND.points}
-              unit=""
-              curve="stepAfter"
-              yDomain={[0, 9]}
-              yTicks={KP_TICKS}
-              thresholds={[
-                {
-                  value: G1_THRESHOLD,
-                  label: "G1 storm",
-                },
-              ]}
-              formatValue={formatKp}
-            />
+            <SourceState
+              resource={kpTrend}
+              loadingMessage="Loading the Kp trend..."
+            >
+              {(trend) => (
+                <TrendLineChart
+                  title="Planetary K-index"
+                  points={trend.points}
+                  measurement="kp"
+                  curve="stepAfter"
+                  yDomain={[0, 9]}
+                  yTicks={KP_TICKS}
+                  maxGapMinutes={KP_INTERVAL_MINUTES}
+                  thresholds={linesFor(
+                    trend.thresholds,
+                    "planetary_k_index"
+                  )}
+                  {...windowProps}
+                />
+              )}
+            </SourceState>
           </Card>
         </PageSection>
 
         <PageSection
           title="Solar wind speed"
-          description="Measured upstream of Earth by the DSCOVR spacecraft. AstroCast treats 500 km/s and above as elevated."
+          description="Measured upstream of Earth by the DSCOVR spacecraft, shown as hourly averages. The dashed line is the speed AstroCast's risk rules treat as elevated."
         >
           <Card>
-            <TrendLineChart
-              title="Solar wind speed"
-              points={speedPoints}
-              unit="km/s"
-              thresholds={[
-                {
-                  value: SOLAR_WIND_ELEVATED_SPEED_KM_S,
-                  label: "Elevated",
-                },
-              ]}
-            />
+            <SourceState
+              resource={solarWindTrend}
+              loadingMessage="Loading the solar-wind trend..."
+            >
+              {(trend) => (
+                <TrendLineChart
+                  title="Solar wind speed"
+                  points={trend.points.map((point) => ({
+                    observed_at: point.observed_at,
+                    value: point.speed_km_s,
+                  }))}
+                  measurement="solar_wind_speed"
+                  readings={HOURLY_AVERAGES}
+                  slots={HOURS}
+                  thresholds={linesFor(
+                    trend.thresholds,
+                    "solar_wind_speed"
+                  )}
+                  {...windowProps}
+                />
+              )}
+            </SourceState>
           </Card>
         </PageSection>
 
         <PageSection
           title="Solar wind density"
-          description="Protons per cubic centimetre in the solar wind. AstroCast treats 10 and above as elevated."
+          description="Protons per cubic centimetre in the solar wind, shown as hourly averages. The dashed line is the density AstroCast's risk rules treat as elevated."
         >
           <Card>
-            <TrendLineChart
-              title="Solar wind density"
-              points={densityPoints}
-              unit="per cm³"
-              thresholds={[
-                {
-                  value: SOLAR_WIND_ELEVATED_DENSITY_PER_CM3,
-                  label: "Elevated",
-                },
-              ]}
-            />
+            <SourceState
+              resource={solarWindTrend}
+              loadingMessage="Loading the solar-wind trend..."
+            >
+              {(trend) => (
+                <TrendLineChart
+                  title="Solar wind density"
+                  points={trend.points.map((point) => ({
+                    observed_at: point.observed_at,
+                    value: point.density_per_cm3,
+                  }))}
+                  measurement="solar_wind_density"
+                  readings={HOURLY_AVERAGES}
+                  slots={HOURS}
+                  thresholds={linesFor(
+                    trend.thresholds,
+                    "solar_wind_density"
+                  )}
+                  {...windowProps}
+                />
+              )}
+            </SourceState>
           </Card>
         </PageSection>
 
         <p className="ui-caption">
-          Source: {formatSource(MOCK_KP_TREND.source)}.
-          Stored observations from past ingestions, with times in
-          UTC. A gap in a line means no measurement was stored for
-          that time, not that activity stopped.
+          Source: {formatSource("NOAA_SWPC")}. Stored observations
+          from past ingestions, with times in UTC. A gap in a line
+          means no measurement was stored for that time, not that
+          activity stopped.
         </p>
       </div>
     </section>

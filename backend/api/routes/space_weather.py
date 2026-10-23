@@ -16,6 +16,7 @@ from schemas.space_weather import (
     SpaceWeatherTrendResponse,
     SolarWindTrendResponse,
     CurrentSpaceWeatherRiskResponse,
+    TrendInterval,
 )
 from services.space_weather_service import (
     get_current_space_weather,
@@ -275,7 +276,19 @@ def solar_wind_trend(
         ge=1,
         le=2000,
         description=(
-            "Maximum points to return."
+            "Maximum points to return. With "
+            "interval=hour, the most hours the "
+            "window may cover."
+        ),
+    ),
+    interval: TrendInterval = Query(
+        default="reading",
+        description=(
+            "reading returns every stored reading. "
+            "hour returns one average per UTC hour "
+            "for every hour from start to end, with "
+            "null values for hours that hold no "
+            "reading. start is required with hour."
         ),
     ),
     db: Session = Depends(get_db),
@@ -283,7 +296,8 @@ def solar_wind_trend(
     """
     Return stored solar-wind readings, grouping the
     speed, density, and temperature measurements
-    recorded for each observation time.
+    recorded for each observation time, or their
+    hourly averages.
     """
 
     return get_solar_wind_trend(
@@ -291,6 +305,7 @@ def solar_wind_trend(
         start=start,
         end=end,
         limit=limit,
+        interval=interval,
     )
 
 

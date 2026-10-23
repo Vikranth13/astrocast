@@ -127,6 +127,20 @@ export type SpaceWeatherAlertDetailResponse =
     explanation: SpaceWeatherExplanation;
   };
 
+export type TrendInterval =
+  | "reading"
+  | "hour";
+
+// A reference value from the risk rules, served with each trend so the
+// chart draws the line the risk engine applies.
+export type TrendThreshold = {
+  rule_id: string;
+  factor: string;
+  value: number;
+  unit: string;
+  label: string;
+};
+
 export type SpaceWeatherTrendPoint = {
   observed_at: string;
   value: number;
@@ -139,6 +153,7 @@ export type SpaceWeatherTrendResponse = {
   unit: string | null;
   count: number;
   points: SpaceWeatherTrendPoint[];
+  thresholds: TrendThreshold[];
 };
 
 export type SolarWindTrendPoint = {
@@ -149,11 +164,15 @@ export type SolarWindTrendPoint = {
   temperature_k: number | null;
 };
 
-// GET /api/space-weather/trends/solar-wind
+// GET /api/space-weather/trends/solar-wind. With interval "hour", every
+// hour of the window is present and an hour with no stored reading has
+// null values.
 export type SolarWindTrendResponse = {
   source: string;
+  interval: TrendInterval;
   count: number;
   points: SolarWindTrendPoint[];
+  thresholds: TrendThreshold[];
 };
 
 export type SpaceWeatherRiskFactor = {

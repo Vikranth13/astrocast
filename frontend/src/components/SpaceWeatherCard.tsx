@@ -8,6 +8,14 @@ import EmptyState from "./ui/EmptyState";
 import ErrorState from "./ui/ErrorState";
 import LoadingState from "./ui/LoadingState";
 
+import {
+  formatUtc,
+} from "../utils/format";
+
+import {
+  formatMeasurementValue,
+} from "../utils/measurements";
+
 import "./SpaceWeatherCard.css";
 
 type SpaceWeatherCardProps = {
@@ -17,14 +25,6 @@ type SpaceWeatherCardProps = {
 };
 
 const CARD_TITLE = "Space Weather";
-
-function formatTimestamp(
-  timestamp: string
-): string {
-  return new Date(
-    timestamp
-  ).toLocaleString();
-}
 
 function SpaceWeatherCard({
   data,
@@ -89,7 +89,7 @@ function SpaceWeatherCard({
       </div>
 
       <p className="ui-headline">
-        Kp {data.facts.kp.toFixed(2)}
+        Kp {formatMeasurementValue("kp", data.facts.kp)}
       </p>
 
       <p className="space-weather-label">
@@ -105,7 +105,7 @@ function SpaceWeatherCard({
 
         <p>
           <strong>Observed:</strong>{" "}
-          {formatTimestamp(
+          {formatUtc(
             data.observed_at
           )}
         </p>

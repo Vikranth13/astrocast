@@ -146,5 +146,23 @@ describe(
         ).toBeInTheDocument();
       }
     );
+
+
+    it(
+      "writes the observation time in UTC like the rest of the app",
+      () => {
+        render(
+          <SpaceWeatherCard
+            data={SPACE_WEATHER_DATA}
+            isLoading={false}
+            errorMessage=""
+          />
+        );
+
+        expect(
+          screen.getByText("2026-08-03 15:00 UTC")
+        ).toBeInTheDocument();
+      }
+    );
   }
 );

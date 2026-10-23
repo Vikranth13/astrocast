@@ -224,13 +224,37 @@ Chart-ready points ordered by observation time.
   "points": [
     { "observed_at": "2026-08-31T21:00:00Z", "value": 1.33 },
     { "observed_at": "2026-09-01T00:00:00Z", "value": 1.0 }
+  ],
+  "thresholds": [
+    {
+      "rule_id": "KP_G1_G2",
+      "factor": "planetary_k_index",
+      "value": 4.67,
+      "unit": "index",
+      "label": "G1 storm"
+    }
   ]
 }
 ```
 
+`thresholds` are the reference values the risk engine applies, taken from the same constants as the rules, so a chart can draw them without keeping its own copy.
+
 ### `GET /api/space-weather/trends/solar-wind`
 
-Same parameters. Each point groups the speed, density, and temperature measurements recorded for one observation time, with the reporting station where NOAA supplies it.
+The same parameters, plus `interval`.
+
+| Parameter | Type | Notes |
+|---|---|---|
+| `interval` | enum | `reading` (default) or `hour` |
+
+- **With `reading`:** each point groups the speed, density, and temperature measurements recorded for one observation time, with the reporting station where NOAA supplies it.
+- **With `hour`:**
+  - Each point is the average of one UTC hour.
+  - Every hour from `start` to `end` is present, in order. An hour that holds no stored reading has `null` values, so a chart shows the gap instead of joining the readings on either side.
+  - `station` is `null`, because an hour can mix stations.
+  - `start` is required. `limit` caps the number of hours, and a longer window returns 400.
+
+The response carries `interval` and `thresholds`: `SW_SPEED_ELEVATED` at 500 km/s and `SW_DENSITY_ELEVATED` at 10 per cm³.
 
 ## Administration
 

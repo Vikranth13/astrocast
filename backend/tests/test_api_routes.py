@@ -622,10 +622,12 @@ def test_solar_wind_trend_route(
         start=None,
         end=None,
         limit=500,
+        interval="reading",
     ):
         captured["start"] = start
         captured["end"] = end
         captured["limit"] = limit
+        captured["interval"] = interval
 
         return expected_response
 
@@ -640,6 +642,8 @@ def test_solar_wind_trend_route(
             "/api/space-weather/"
             "trends/solar-wind"
             "?limit=25"
+            "&interval=hour"
+            "&start=2026-08-25T00:00:00Z"
         )
     )
 
@@ -657,6 +661,19 @@ def test_solar_wind_trend_route(
     )
 
     assert captured["limit"] == 25
+    assert captured["interval"] == "hour"
+
+
+def test_solar_wind_trend_rejects_an_unknown_interval() -> None:
+    response = client.get(
+        (
+            "/api/space-weather/"
+            "trends/solar-wind"
+            "?interval=fortnight"
+        )
+    )
+
+    assert response.status_code == 422
 
 @pytest.mark.parametrize(
     "limit",

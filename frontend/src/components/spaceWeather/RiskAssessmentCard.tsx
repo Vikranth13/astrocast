@@ -14,21 +14,39 @@ import {
   formatUtc,
 } from "../../utils/format";
 
+import {
+  MEASUREMENTS,
+  formatMeasurementWithUnit,
+  measurementForFactor,
+} from "../../utils/measurements";
+
 import "./spaceWeather.css";
 
 type RiskAssessmentCardProps = {
   assessment: CurrentSpaceWeatherRiskResponse;
 };
 
-const FACTOR_LABELS: Record<string, string> = {
-  planetary_k_index: "Planetary K-index",
-  solar_wind_speed: "Solar wind speed",
-  solar_wind_density: "Solar wind density",
-};
+// Known factors are written the same way as everywhere else in the app.
+// A factor the frontend does not know yet is shown as the backend sent it.
+function describeFactor(
+  factor: string,
+  value: number,
+  unit: string
+): { label: string; reading: string } {
+  const kind = measurementForFactor(factor);
 
-const UNIT_LABELS: Record<string, string> = {
-  "1/cm^3": "per cm³",
-};
+  if (kind === null) {
+    return {
+      label: factor,
+      reading: `${value} ${unit}`,
+    };
+  }
+
+  return {
+    label: MEASUREMENTS[kind].label,
+    reading: formatMeasurementWithUnit(kind, value),
+  };
+}
 
 function RiskAssessmentCard({
   assessment,
@@ -52,33 +70,38 @@ function RiskAssessmentCard({
 
       <ul className="risk-factors">
         {risk.contributing_factors.map(
-          (factor) => (
-            <li
-              className="risk-factor"
-              key={factor.rule_id}
-            >
-              <div className="ui-row">
-                <span className="risk-factor-name">
-                  {FACTOR_LABELS[factor.factor]
-                    ?? factor.factor}
-                </span>
+          (factor) => {
+            const { label, reading } = describeFactor(
+              factor.factor,
+              factor.value,
+              factor.unit
+            );
 
-                <span className="risk-factor-value">
-                  {factor.value}{" "}
-                  {UNIT_LABELS[factor.unit]
-                    ?? factor.unit}
-                </span>
-              </div>
+            return (
+              <li
+                className="risk-factor"
+                key={factor.rule_id}
+              >
+                <div className="ui-row">
+                  <span className="risk-factor-name">
+                    {label}
+                  </span>
 
-              <p className="ui-muted">
-                {factor.description}
-              </p>
+                  <span className="risk-factor-value">
+                    {reading}
+                  </span>
+                </div>
 
-              <code className="risk-rule-id">
-                {factor.rule_id}
-              </code>
-            </li>
-          )
+                <p className="ui-muted">
+                  {factor.description}
+                </p>
+
+                <code className="risk-rule-id">
+                  {factor.rule_id}
+                </code>
+              </li>
+            );
+          }
         )}
       </ul>
 

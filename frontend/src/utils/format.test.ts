@@ -6,6 +6,7 @@ import {
 
 import {
   formatLocalHour,
+  formatLocalTime,
   formatMeasurement,
   formatSource,
   formatUtc,
@@ -36,6 +37,33 @@ describe(
         expect(
           formatMeasurement(null, "%")
         ).toBe("—");
+      }
+    );
+  }
+);
+
+
+describe(
+  "formatLocalTime",
+  () => {
+    it(
+      "keeps the date and hour and says the time is local",
+      () => {
+        expect(
+          formatLocalTime(
+            "2026-10-19T22:00"
+          )
+        ).toBe("2026-10-19 22:00 local time");
+      }
+    );
+
+
+    it(
+      "returns unrecognised input unchanged",
+      () => {
+        expect(
+          formatLocalTime("tonight")
+        ).toBe("tonight");
       }
     );
   }

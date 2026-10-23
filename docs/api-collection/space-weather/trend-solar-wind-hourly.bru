@@ -1,0 +1,22 @@
+meta {
+  name: Trend - solar wind hourly
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/api/space-weather/trends/solar-wind?interval=hour&start=2026-10-16T00:00:00Z&end=2026-10-23T00:00:00Z
+  body: none
+  auth: none
+}
+
+params:query {
+  interval: hour
+  start: 2026-10-16T00:00:00Z
+  end: 2026-10-23T00:00:00Z
+}
+
+docs {
+  One average per UTC hour, for every hour in the window. Hours with
+  no stored reading come back with null values. start is required.
+}

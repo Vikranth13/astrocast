@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import HTTPException
@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from repositories.space_weather_repository import (
     get_latest_measurement,
+    list_hourly_averages,
     list_measurements,
 )
 
@@ -27,10 +28,12 @@ from schemas.space_weather import (
     SolarWindTrendResponse,
     CurrentSpaceWeatherRiskResponse,
     SpaceWeatherRiskRawValues,
+    TrendInterval,
 )
 from services.space_weather_risk_service import (
     assess_space_weather_risk,
     classify_planetary_k_index,
+    trend_thresholds,
 )
 # format_age is re-exported from this module because
 # it lived here before the explanation engine existed.
@@ -66,6 +69,12 @@ SOLAR_WIND_DENSITY_METRIC = (
 SOLAR_WIND_TEMPERATURE_METRIC = (
     "solar_wind_temperature"
 )
+
+ONE_HOUR = timedelta(hours=1)
+
+# Hourly averages are rounded for the response. Two decimals is finer
+# than any of these instruments is read to.
+HOURLY_AVERAGE_DECIMALS = 2
 
 
 def ensure_utc(
@@ -472,14 +481,151 @@ def get_kp_trend(
         unit=unit,
         count=len(points),
         points=points,
+        thresholds=trend_thresholds(
+            METRIC_NAME,
+        ),
     )
+
+def floor_to_hour(
+    value: datetime,
+) -> datetime:
+    return value.replace(
+        minute=0,
+        second=0,
+        microsecond=0,
+    )
+
+
+def get_hourly_solar_wind_trend(
+    db: Session,
+    start: datetime | None,
+    end: datetime | None,
+    max_hours: int,
+) -> SolarWindTrendResponse:
+    """
+    Average the solar wind over every UTC hour of a window.
+
+    Every hour from the start hour to the end hour is returned, in
+    order. An hour with no stored reading keeps null values rather than
+    being dropped, so a chart drawn from this response shows the gap
+    instead of joining the readings on either side of it.
+    """
+
+    if start is None:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "start is required when "
+                "interval is hour."
+            ),
+        )
+
+    window_end = (
+        ensure_utc(end)
+        if end is not None
+        else datetime.now(timezone.utc)
+    )
+
+    first_hour = floor_to_hour(
+        ensure_utc(start)
+    )
+
+    last_hour = floor_to_hour(
+        window_end
+    )
+
+    hour_count = int(
+        (last_hour - first_hour) / ONE_HOUR
+    ) + 1
+
+    if hour_count > max_hours:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "An hourly trend can cover at most "
+                f"{max_hours} hours. Shorten the "
+                "window or raise limit."
+            ),
+        )
+
+    # -----------------------------------------------------------
+    # One average per stored hour, for each metric
+    # -----------------------------------------------------------
+
+    averages: dict[str, dict[datetime, float]] = {}
+
+    for metric_name in (
+        SOLAR_WIND_SPEED_METRIC,
+        SOLAR_WIND_DENSITY_METRIC,
+        SOLAR_WIND_TEMPERATURE_METRIC,
+    ):
+        averages[metric_name] = {
+            ensure_utc(hour): round(
+                average,
+                HOURLY_AVERAGE_DECIMALS,
+            )
+            for hour, average, _reading_count in (
+                list_hourly_averages(
+                    db=db,
+                    source=SOURCE_NAME,
+                    metric_name=metric_name,
+                    start=first_hour,
+                    end=window_end,
+                )
+            )
+        }
+
+    # -----------------------------------------------------------
+    # Every hour of the window, empty where nothing was stored
+    # -----------------------------------------------------------
+
+    points = []
+
+    for index in range(hour_count):
+        hour = first_hour + index * ONE_HOUR
+
+        points.append(
+            SolarWindTrendPoint(
+                observed_at=hour,
+                # An hour can mix stations, so an average
+                # is not attributed to one.
+                station=None,
+                speed_km_s=averages[
+                    SOLAR_WIND_SPEED_METRIC
+                ].get(hour),
+                density_per_cm3=averages[
+                    SOLAR_WIND_DENSITY_METRIC
+                ].get(hour),
+                temperature_k=averages[
+                    SOLAR_WIND_TEMPERATURE_METRIC
+                ].get(hour),
+            )
+        )
+
+    return SolarWindTrendResponse(
+        source=SOURCE_NAME,
+        interval="hour",
+        count=len(points),
+        points=points,
+        thresholds=trend_thresholds(
+            SOLAR_WIND_SPEED_METRIC,
+            SOLAR_WIND_DENSITY_METRIC,
+        ),
+    )
+
 
 def get_solar_wind_trend(
     db: Session,
     start: datetime | None = None,
     end: datetime | None = None,
     limit: int = 500,
+    interval: TrendInterval = "reading",
 ) -> SolarWindTrendResponse:
+    """
+    Return stored solar-wind readings, or hourly averages when interval
+    is "hour". In hourly mode, limit caps the number of hours.
+    """
+
     if (
         start is not None
         and end is not None
@@ -491,6 +637,14 @@ def get_solar_wind_trend(
                 "start must be earlier than "
                 "or equal to end."
             ),
+        )
+
+    if interval == "hour":
+        return get_hourly_solar_wind_trend(
+            db=db,
+            start=start,
+            end=end,
+            max_hours=limit,
         )
 
     speed_measurements = list_measurements(
@@ -615,8 +769,13 @@ def get_solar_wind_trend(
 
     return SolarWindTrendResponse(
         source=SOURCE_NAME,
+        interval="reading",
         count=len(points),
         points=points,
+        thresholds=trend_thresholds(
+            SOLAR_WIND_SPEED_METRIC,
+            SOLAR_WIND_DENSITY_METRIC,
+        ),
     )
 
 def get_current_space_weather_risk(

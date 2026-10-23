@@ -1,10 +1,12 @@
 import type {
   SolarWindTrendResponse,
   SpaceWeatherTrendResponse,
+  TrendThreshold,
 } from "../api/types/spaceWeather";
 
-// Seven days of three-hour readings, ending at the same moment and the
-// same values as the Dashboard mini trends and the Space Weather page.
+// Test fixtures in the shape the trend endpoints return. Seven days of
+// three-hour readings, ending at the same moment and the same values as
+// the space-weather fixtures.
 const PERIOD_START_MS = Date.UTC(2026, 7, 31, 0, 0);
 
 const THREE_HOURS_MS = 3 * 60 * 60 * 1000;
@@ -50,6 +52,36 @@ const SOLAR_WIND_DENSITIES = [
   5.6, 6.1, 6.9, 7.8, 9.2, 10.6, 9.4, 8.4,
 ];
 
+// The thresholds the backend serves with each trend, from the risk
+// engine's constants.
+export const KP_THRESHOLDS: TrendThreshold[] = [
+  {
+    rule_id: "KP_G1_G2",
+    factor: "planetary_k_index",
+    value: 4.67,
+    unit: "index",
+    label: "G1 storm",
+  },
+];
+
+export const SOLAR_WIND_THRESHOLDS: TrendThreshold[] = [
+  {
+    rule_id: "SW_SPEED_ELEVATED",
+    factor: "solar_wind_speed",
+    value: 500,
+    unit: "km/s",
+    label: "Elevated",
+  },
+
+  {
+    rule_id: "SW_DENSITY_ELEVATED",
+    factor: "solar_wind_density",
+    value: 10,
+    unit: "1/cm^3",
+    label: "Elevated",
+  },
+];
+
 export const MOCK_KP_TREND: SpaceWeatherTrendResponse = {
   source: "NOAA_SWPC",
   metric_name: "planetary_k_index",
@@ -62,10 +94,13 @@ export const MOCK_KP_TREND: SpaceWeatherTrendResponse = {
       value,
     })
   ),
+
+  thresholds: KP_THRESHOLDS,
 };
 
 export const MOCK_SOLAR_WIND_TREND: SolarWindTrendResponse = {
   source: "NOAA_SWPC",
+  interval: "reading",
   count: SOLAR_WIND_SPEEDS.length,
 
   points: SOLAR_WIND_SPEEDS.map(
@@ -77,4 +112,6 @@ export const MOCK_SOLAR_WIND_TREND: SolarWindTrendResponse = {
       temperature_k: null,
     })
   ),
+
+  thresholds: SOLAR_WIND_THRESHOLDS,
 };

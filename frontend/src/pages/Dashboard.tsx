@@ -41,6 +41,10 @@ import {
   useApiResource,
 } from "../hooks/useApiResource";
 
+import {
+  MEASUREMENTS,
+} from "../utils/measurements";
+
 const LAST_DAY_MS = 24 * 60 * 60 * 1000;
 
 // The solar-wind source reports once a minute, so a day is about 1,440
@@ -145,9 +149,9 @@ function Dashboard() {
   const kpSummary = mapResource(
     kpTrend,
     (trend) => summarizeTrend(
-      "Planetary Kp",
-      "index",
-      2,
+      MEASUREMENTS.kp.label,
+      MEASUREMENTS.kp.unit,
+      MEASUREMENTS.kp.decimals,
       trend.points
     )
   );
@@ -155,9 +159,9 @@ function Dashboard() {
   const solarWindSummary = mapResource(
     solarWindTrend,
     (trend) => summarizeTrend(
-      "Solar wind speed",
-      "km/s",
-      0,
+      MEASUREMENTS.solar_wind_speed.label,
+      MEASUREMENTS.solar_wind_speed.unit,
+      MEASUREMENTS.solar_wind_speed.decimals,
       trend.points.map((point) => ({
         observed_at: point.observed_at,
         value: point.speed_km_s,

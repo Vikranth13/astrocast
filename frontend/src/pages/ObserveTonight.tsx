@@ -34,6 +34,10 @@ import MetricCard from "../components/ui/MetricCard";
 import PageSection from "../components/ui/PageSection";
 import PlaceholderCard from "../components/ui/PlaceholderCard";
 
+import {
+  formatLocalTime,
+} from "../utils/format";
+
 import "../components/observe/observe.css";
 
 const SEARCH_PROMPT =
@@ -296,7 +300,9 @@ function ObserveTonight() {
 
                 <p className="ui-muted">
                   Forecast time:{" "}
-                  {forecast.forecast_time}
+                  {formatLocalTime(
+                    forecast.forecast_time
+                  )}
                 </p>
               </div>
             </Card>

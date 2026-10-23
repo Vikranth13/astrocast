@@ -37,7 +37,7 @@ import type {
 
 import {
   MOCK_ALERTS,
-} from "../data/mockSpaceWeather";
+} from "../test/spaceWeatherFixtures";
 
 
 vi.mock(

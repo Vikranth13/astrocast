@@ -4,6 +4,7 @@ from schemas.space_weather import (
     GeomagneticActivity,
     SpaceWeatherRiskAssessment,
     SpaceWeatherRiskFactor,
+    TrendThreshold,
 )
 
 
@@ -16,6 +17,48 @@ G5_THRESHOLD = 9.00
 SOLAR_WIND_ELEVATED_SPEED_KM_S = 500.0
 
 SOLAR_WIND_ELEVATED_DENSITY_PER_CM3 = 10.0
+
+# The values trend charts draw as reference lines: the point at which
+# each rule below first fires. They are built from the same constants
+# the rules use, so a chart can never show a different line from the
+# one the risk engine applies.
+TREND_THRESHOLDS = (
+    TrendThreshold(
+        rule_id="KP_G1_G2",
+        factor="planetary_k_index",
+        value=G1_THRESHOLD,
+        unit="index",
+        label="G1 storm",
+    ),
+    TrendThreshold(
+        rule_id="SW_SPEED_ELEVATED",
+        factor="solar_wind_speed",
+        value=SOLAR_WIND_ELEVATED_SPEED_KM_S,
+        unit="km/s",
+        label="Elevated",
+    ),
+    TrendThreshold(
+        rule_id="SW_DENSITY_ELEVATED",
+        factor="solar_wind_density",
+        value=SOLAR_WIND_ELEVATED_DENSITY_PER_CM3,
+        unit="1/cm^3",
+        label="Elevated",
+    ),
+)
+
+
+def trend_thresholds(
+    *factors: str,
+) -> list[TrendThreshold]:
+    """
+    Return the reference lines for the given factors.
+    """
+
+    return [
+        threshold
+        for threshold in TREND_THRESHOLDS
+        if threshold.factor in factors
+    ]
 
 def classify_planetary_k_index(
     kp: Decimal | float,

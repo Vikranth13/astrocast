@@ -54,9 +54,11 @@ function MiniTrendCard({
             {trend.current.toFixed(trend.decimals)}
           </span>
 
-          <span className="ui-caption">
-            {trend.unit}
-          </span>
+          {trend.unit && (
+            <span className="ui-caption">
+              {trend.unit}
+            </span>
+          )}
         </div>
 
         <span className="ui-caption">

@@ -225,6 +225,32 @@ class SpaceWeatherAlertDetailResponse(
     explanation: SpaceWeatherExplanation
 
 
+TrendInterval = Literal[
+    "reading",
+    "hour",
+]
+
+
+class TrendThreshold(BaseModel):
+    """
+    A reference value from the AstroCast risk rules,
+    for drawing on a trend chart.
+
+    Served with the trend so a chart's lines are
+    always the values the risk engine applies.
+    """
+
+    rule_id: str
+
+    factor: str
+
+    value: float
+
+    unit: str
+
+    label: str
+
+
 class SpaceWeatherTrendPoint(BaseModel):
     observed_at: datetime
     value: float
@@ -245,6 +271,12 @@ class SpaceWeatherTrendResponse(BaseModel):
         SpaceWeatherTrendPoint
     ]
 
+    thresholds: list[
+        TrendThreshold
+    ] = Field(
+        default_factory=list,
+    )
+
 class SolarWindTrendPoint(BaseModel):
     observed_at: datetime
 
@@ -258,7 +290,19 @@ class SolarWindTrendPoint(BaseModel):
 
 
 class SolarWindTrendResponse(BaseModel):
+    """
+    Solar-wind readings for a time window.
+
+    With interval "reading", each point is one stored
+    reading. With interval "hour", each point is the
+    average of one UTC hour, every hour in the window
+    is present, and an hour with no stored reading has
+    null values, so gaps stay visible.
+    """
+
     source: str
+
+    interval: TrendInterval = "reading"
 
     count: int = Field(
         ge=0,
@@ -267,6 +311,12 @@ class SolarWindTrendResponse(BaseModel):
     points: list[
         SolarWindTrendPoint
     ]
+
+    thresholds: list[
+        TrendThreshold
+    ] = Field(
+        default_factory=list,
+    )
 
 class SpaceWeatherRiskFactor(BaseModel):
     """

@@ -12,6 +12,7 @@ import type {
   SpaceWeatherAlertDetailResponse,
   SpaceWeatherAlertListResponse,
   SpaceWeatherTrendResponse,
+  TrendInterval,
 } from "./types/spaceWeather";
 
 const SPACE_WEATHER_PATH = "/api/space-weather";
@@ -36,6 +37,12 @@ export type TrendQuery = {
   start?: string;
   end?: string;
   limit?: number;
+};
+
+// The solar-wind trend can also be averaged per hour. start is required
+// then, and limit caps the number of hours.
+export type SolarWindTrendQuery = TrendQuery & {
+  interval?: TrendInterval;
 };
 
 export function getCurrentSpaceWeather():
@@ -99,7 +106,7 @@ export function getKpTrend(
 }
 
 export function getSolarWindTrend(
-  query: TrendQuery = {}
+  query: SolarWindTrendQuery = {}
 ): Promise<SolarWindTrendResponse> {
   return apiGet<SolarWindTrendResponse>(
     `${SPACE_WEATHER_PATH}/trends/solar-wind`,

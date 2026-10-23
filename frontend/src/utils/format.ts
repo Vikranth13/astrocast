@@ -60,6 +60,20 @@ export function formatLocalHour(
   return match ? match[1] : localTime;
 }
 
+// The date and hour of a forecast time, always marked as local so it is
+// never read as UTC like the NOAA timestamps beside it.
+export function formatLocalTime(
+  localTime: string
+): string {
+  const match = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/.exec(
+    localTime
+  );
+
+  return match
+    ? `${match[1]} ${match[2]} local time`
+    : localTime;
+}
+
 const MISSING_VALUE = "—";
 
 // A percent sign sits against the number; every other unit is spaced.

@@ -35,12 +35,12 @@ import {
   MOCK_ALERTS,
   MOCK_CURRENT_CONDITIONS,
   MOCK_RISK,
-} from "../data/mockSpaceWeather";
+} from "../test/spaceWeatherFixtures";
 
 import {
   MOCK_KP_TREND,
   MOCK_SOLAR_WIND_TREND,
-} from "../data/mockTrends";
+} from "../test/trendFixtures";
 
 import {
   FORECAST_FIXTURE,

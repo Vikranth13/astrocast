@@ -14,27 +14,52 @@ import {
   formatUtcDay,
 } from "../../utils/format";
 
+import {
+  MEASUREMENTS,
+  formatMeasurementValue,
+  formatMeasurementWithUnit,
+  type MeasurementKind,
+} from "../../utils/measurements";
+
+import {
+  buildChartData,
+  dayTicksBetween,
+  type ChartDatum,
+  type ChartPoint,
+} from "./chartData";
+
 import "./trends.css";
 
-export type ChartPoint = {
-  observed_at: string;
-  value: number | null;
-};
-
-type Threshold = {
+export type ChartThreshold = {
   value: number;
   label: string;
+};
+
+type Noun = {
+  one: string;
+  many: string;
 };
 
 type TrendLineChartProps = {
   title: string;
   points: ChartPoint[];
-  unit: string;
+  measurement: MeasurementKind;
+  // The requested window. The time axis always spans it, so missing
+  // data shows as empty space instead of the readings closing ranks.
+  windowStart: string;
+  windowEnd: string;
+  windowLabel: string;
+  // What one point is: a stored reading, or an hourly average.
+  readings?: Noun;
+  // For a series with one slot per interval, what a slot is called, so
+  // empty slots can be counted in the summary.
+  slots?: Noun;
+  // Readings further apart than this are not joined by the line.
+  maxGapMinutes?: number;
   curve?: "monotone" | "stepAfter";
   yDomain?: [number, number];
   yTicks?: number[];
-  thresholds?: Threshold[];
-  formatValue?: (value: number) => string;
+  thresholds?: ChartThreshold[];
 };
 
 type MeasuredPoint = {
@@ -44,85 +69,111 @@ type MeasuredPoint = {
 
 const CHART_HEIGHT = 260;
 
-const MISSING_VALUE = "—";
+const READINGS: Noun = {
+  one: "reading",
+  many: "readings",
+};
 
 const AXIS_TICK = {
   fill: "var(--color-text-muted)",
   fontSize: 12,
 };
 
-function defaultFormat(
-  value: number
+function plural(
+  count: number,
+  noun: Noun
 ): string {
-  return String(value);
+  return `${count} ${count === 1 ? noun.one : noun.many}`;
 }
 
-function isMidnightUtc(
-  timestamp: string
-): boolean {
-  const date = new Date(timestamp);
-
-  return (
-    date.getUTCHours() === 0
-    && date.getUTCMinutes() === 0
-  );
+// buildChartData adds one empty point per gap, so the difference in
+// length is the number of breaks in the line.
+function countGaps(
+  data: ChartDatum[],
+  points: ChartPoint[]
+): number {
+  return data.length - points.length;
 }
 
 function TrendLineChart({
   title,
   points,
-  unit,
+  measurement,
+  windowStart,
+  windowEnd,
+  windowLabel,
+  readings = READINGS,
+  slots,
+  maxGapMinutes,
   curve = "monotone",
   yDomain,
   yTicks,
   thresholds = [],
-  formatValue = defaultFormat,
 }: TrendLineChartProps) {
-  function withUnit(
-    value: number
-  ): string {
-    return unit
-      ? `${formatValue(value)} ${unit}`
-      : formatValue(value);
-  }
+  const { unit } = MEASUREMENTS[measurement];
+
+  const startMs = Date.parse(windowStart);
+  const endMs = Date.parse(windowEnd);
+
+  const data = buildChartData(
+    points,
+    maxGapMinutes
+  );
 
   const measured = points.filter(
     (point): point is MeasuredPoint =>
       point.value !== null
   );
 
-  const missingCount =
+  const emptyCount =
     points.length - measured.length;
+
+  const gapCount = countGaps(data, points);
 
   const latest = measured[measured.length - 1];
 
+  // -----------------------------------------------------------
+  // The text that stands in for the chart
+  // -----------------------------------------------------------
+
+  const windowText =
+    `${windowLabel}, ${formatUtc(windowStart)} `
+    + `to ${formatUtc(windowEnd)}.`;
+
   let summary =
-    "No measurements were stored for this period.";
+    `${windowText} No ${readings.many} were stored `
+    + "in this window.";
 
   if (latest) {
     const values = measured.map(
       (point) => point.value
     );
 
-    const missingNote = missingCount > 0
-      ? `, with ${missingCount} missing`
+    const emptyNote = slots && emptyCount > 0
+      ? ` ${plural(emptyCount, slots)} `
+        + `${emptyCount === 1 ? "has" : "have"} no stored reading.`
+      : "";
+
+    const gapNote = gapCount > 0
+      ? ` The line breaks at ${plural(gapCount, {
+        one: "gap",
+        many: "gaps",
+      })} with no stored reading.`
       : "";
 
     summary = (
-      `Latest ${withUnit(latest.value)} at `
+      `${windowText} Latest `
+      + `${formatMeasurementWithUnit(measurement, latest.value)} at `
       + `${formatUtc(latest.observed_at)}. `
-      + `Ranged from ${formatValue(Math.min(...values))} `
-      + `to ${withUnit(Math.max(...values))} `
-      + `across ${measured.length} readings`
-      + `${missingNote}.`
+      + "Ranged from "
+      + `${formatMeasurementValue(measurement, Math.min(...values))} `
+      + "to "
+      + `${formatMeasurementWithUnit(measurement, Math.max(...values))} `
+      + `across ${plural(measured.length, readings)}.`
+      + emptyNote
+      + gapNote
     );
   }
-
-  const dayTicks = points
-    .filter((point) =>
-      isMidnightUtc(point.observed_at)
-    )
-    .map((point) => point.observed_at);
 
   // The chart is one image to assistive technology, described by the
   // summary. Recharts' own keyboard layer is turned off because it
@@ -139,7 +190,7 @@ function TrendLineChart({
           height={CHART_HEIGHT}
         >
           <LineChart
-            data={points}
+            data={data}
             accessibilityLayer={false}
             margin={{
               top: 16,
@@ -155,13 +206,14 @@ function TrendLineChart({
             />
 
             <XAxis
-              dataKey="observed_at"
-              ticks={
-                dayTicks.length > 1
-                  ? dayTicks
-                  : undefined
+              dataKey="t"
+              type="number"
+              scale="time"
+              domain={[startMs, endMs]}
+              ticks={dayTicksBetween(startMs, endMs)}
+              tickFormatter={(value: number) =>
+                formatUtcDay(new Date(value).toISOString())
               }
-              tickFormatter={formatUtcDay}
               stroke="var(--color-border-strong)"
               tick={AXIS_TICK}
             />
@@ -176,10 +228,15 @@ function TrendLineChart({
 
             <Tooltip
               labelFormatter={(label) =>
-                formatUtc(String(label))
+                formatUtc(
+                  new Date(Number(label)).toISOString()
+                )
               }
               formatter={(value) => [
-                withUnit(Number(value)),
+                formatMeasurementWithUnit(
+                  measurement,
+                  Number(value)
+                ),
                 title,
               ]}
               contentStyle={{
@@ -256,9 +313,10 @@ function TrendLineChart({
                   </th>
 
                   <td>
-                    {point.value === null
-                      ? MISSING_VALUE
-                      : formatValue(point.value)}
+                    {formatMeasurementValue(
+                      measurement,
+                      point.value
+                    )}
                   </td>
                 </tr>
               ))}
