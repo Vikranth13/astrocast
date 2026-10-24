@@ -6,9 +6,10 @@ AstroCast uses PostgreSQL as its persistent relational database.
 
 SQLAlchemy defines the database models in Python, while Alembic creates and versions the physical PostgreSQL schema.
 
-The database currently contains four application tables:
+The database currently contains five application tables:
 
 * `locations`
+* `forecast_snapshots`
 * `space_weather_alerts`
 * `space_weather_measurements`
 * `api_fetch_logs`
@@ -55,6 +56,39 @@ UNIQUE(latitude, longitude)
 ```
 
 This prevents the same coordinate pair from being stored repeatedly.
+
+Every successful `/forecast` search stores its place here once, keyed on the coordinates rounded to the six decimal places the columns hold. A repeat search refreshes the name, region, country, and time zone.
+
+### forecast_snapshots
+
+Stores what each local observing forecast showed and when, so later checks of the same place can be compared with earlier ones. There are no user accounts, so the history is shared by everyone using the backend.
+
+| Column | Type | Required | Purpose |
+| --- | --- | ---: | --- |
+| `id` | Integer | Yes | Primary key |
+| `location_id` | Integer | Yes | The searched place, in `locations` |
+| `retrieved_at` | Timestamp with time zone | Yes | When AstroCast fetched the forecast, in UTC |
+| `forecast_time` | String | Yes | The local forecast hour, with no offset, as the forecast returns it |
+| `score` | Integer | Yes | Stargazing score for that hour |
+| `rating` | String | Yes | Rating for that score |
+| `limiting_factor` | String | No | The costliest limiting condition, if any |
+| `best_window_first_hour` | String | No | First hour of the best observing window |
+| `best_window_last_hour` | String | No | Last hour of the best observing window |
+| `best_window_qualifies` | Boolean | No | Whether the window reaches Good |
+| `response` | JSONB | Yes | The full forecast, exactly as it was returned |
+| `created_at` | Timestamp | Yes | Record creation time |
+
+Index:
+
+```text
+(location_id, retrieved_at)
+```
+
+The index serves both history queries: the latest snapshot for each place, and one place's snapshots newest first.
+
+**Saving rule.** At most one snapshot per place, forecast hour, and hour of checking. A repeat check within 60 minutes of the latest snapshot for the same place and forecast hour updates that snapshot instead of adding another. The rule is applied by `services/forecast_history_service.py` rather than a constraint, because "within the hour" is relative to the moment of the new check.
+
+**Failure rule.** A failed save is rolled back and logged, and the forecast is still returned, with a null `location_id`. `/forecast` must keep working while PostgreSQL is unavailable.
 
 ### space_weather_alerts
 
@@ -203,11 +237,9 @@ Frontend components should consume normalized API responses rather than raw sour
 
 ## Current Relationships
 
-The four initial tables are independent.
+`forecast_snapshots.location_id` references `locations.id`. Deleting a location deletes its snapshots.
 
-Space-weather measurements and alerts represent global scientific conditions, so they do not currently reference a location.
-
-Location relationships may be added later when local forecast history or saved locations are persisted.
+Space-weather measurements and alerts represent global scientific conditions, so they do not reference a location.
 
 ## Migrations
 
@@ -215,6 +247,7 @@ Location relationships may be added later when local forecast history or saved l
 | --- | --- |
 | `e2461684f17c` | Initial AstroCast schema |
 | `0dc8d08221c3` | Adds `api_fetch_logs.normalized_count` and backfills existing successful rows |
+| `3b8555bec648` | Creates `forecast_snapshots` and its lookup index |
 
 ## Migration Verification
 

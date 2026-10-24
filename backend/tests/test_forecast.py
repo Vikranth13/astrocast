@@ -218,6 +218,7 @@ def test_forecast_route_matches_its_schema(
         "stargazing",
         "hourly",
         "best_window",
+        "location_id",
     }
 
     assert body["stargazing"]["limiting_factor"] is None
@@ -231,3 +232,30 @@ def test_forecast_route_matches_its_schema(
         "wind_speed",
         "visibility",
     ]
+
+
+def test_forecast_still_returns_while_the_database_is_down(
+    monkeypatch,
+) -> None:
+    """
+    The shared test setup gives every route a session that fails like
+    a lost connection. The forecast must arrive anyway, with no
+    location id, because saving history is never allowed to cost the
+    user their forecast.
+    """
+
+    install_fixed_forecast(
+        monkeypatch,
+        hourly_payload(),
+    )
+
+    response = client.get(
+        "/forecast?city=Paris"
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["location_id"] is None
+    assert body["stargazing"]["score"] == 100

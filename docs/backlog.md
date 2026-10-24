@@ -69,9 +69,9 @@ Replace mock data with typed real API calls, keeping UI behaviour stable.
 - [x] Kp and solar-wind trends connected. Solar wind is charted as hourly averages from a new `interval=hour` mode, the chart's threshold lines now come from the backend, and the Space Weather page is live as well. No page reads mock data any more; the fixtures moved under `src/test/`.
 - [x] Units and timestamps formatted consistently. One measurement table in `utils/measurements.ts`; NOAA times always in UTC, forecast times always marked local.
 - [x] Accessible chart labels and text summaries. Charts sit on a real time axis over the stated window, break the line across missing data, and say in text how many hours are empty.
-- [ ] Forecast snapshots saved when appropriate.
-- [ ] Recent searches or location history endpoint, without user accounts.
-- [ ] Recent forecast comparisons or a small history list.
+- [x] Forecast snapshots saved when appropriate. At most one per place, forecast hour, and hour of checking; a save never blocks the forecast.
+- [x] Recent searches or location history endpoint, without user accounts. `GET /api/locations/recent` and `GET /api/locations/{id}/forecasts`; the history is shared by everyone using the backend.
+- [x] Recent forecast comparisons or a small history list. Observe Tonight lists recent searches and earlier checks, and compares only checks of the same night.
 - [ ] Request cancellation for superseded searches.
 - [ ] Duplicate button submissions prevented.
 - [ ] Friendly retry controls.
@@ -96,7 +96,7 @@ Quality improvements that must not delay required work.
 - [ ] Authenticate the ingestion administration routes.
 - [ ] Scheduled ingestion instead of manual runs.
 - [ ] Location disambiguation for cities sharing a name; show region and country before selection.
-- [ ] Persist searched locations to the `locations` table.
+- [x] Persist searched locations to the `locations` table. Done on Week 5 Day 5, as part of the forecast history.
 - [ ] Replace the fixed 10:00 PM forecast hour with the next appropriate local observing time. Since Week 5 Day 2 the hourly night (18:00 for twelve readings) and the best window are anchored to the same first forecast day, so a search made late in the evening can report hours that have already passed.
 - [ ] Improve failed-search UI so stale cards cannot be mistaken for valid output.
 - [ ] Update corrected NOAA measurements rather than skipping them.

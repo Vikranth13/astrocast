@@ -137,4 +137,6 @@ export const FORECAST_FIXTURE: ForecastResponse = {
     peak_rating: "Excellent",
     qualifies: true,
   },
+
+  location_id: 7,
 };

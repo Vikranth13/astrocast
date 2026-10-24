@@ -69,7 +69,8 @@ export type BestObservingWindow = {
   qualifies: boolean;
 };
 
-// GET /forecast
+// GET /forecast. location_id identifies the place in the search history,
+// and is null when the forecast could not be saved there.
 export type ForecastResponse = {
   location: ForecastLocation;
   forecast_time: string;
@@ -77,4 +78,41 @@ export type ForecastResponse = {
   stargazing: StargazingScore;
   hourly: HourlyForecast[];
   best_window: BestObservingWindow | null;
+  location_id: number | null;
+};
+
+export type SavedLocation =
+  ForecastLocation & {
+    id: number;
+  };
+
+// One earlier check of a place's forecast. retrieved_at is when it was
+// fetched, in UTC. forecast_time is the local hour it was for.
+export type ForecastSnapshotSummary = {
+  retrieved_at: string;
+  forecast_time: string;
+  score: number;
+  rating: StargazingRating;
+  limiting_factor: string | null;
+  best_window_first_hour: string | null;
+  best_window_last_hour: string | null;
+  best_window_qualifies: boolean | null;
+};
+
+export type RecentSearch = {
+  location: SavedLocation;
+  latest: ForecastSnapshotSummary;
+};
+
+// GET /api/locations/recent
+export type RecentSearchListResponse = {
+  count: number;
+  searches: RecentSearch[];
+};
+
+// GET /api/locations/{location_id}/forecasts
+export type ForecastHistoryResponse = {
+  location: SavedLocation;
+  count: number;
+  snapshots: ForecastSnapshotSummary[];
 };

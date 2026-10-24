@@ -1,0 +1,20 @@
+meta {
+  name: Recent searches
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/locations/recent?limit=5
+  body: none
+  auth: none
+}
+
+params:query {
+  limit: 5
+}
+
+docs {
+  Recently searched places, each with its latest saved check. Run the
+  forecast request first so there is something to list.
+}

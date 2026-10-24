@@ -12,6 +12,9 @@ from api.routes.admin_ingestion import (
 from api.routes.astronomy import (
     router as astronomy_router,
 )
+from api.routes.locations import (
+    router as locations_router,
+)
 from api.routes.observe import (
     router as observe_router,
 )
@@ -125,6 +128,10 @@ app.include_router(
 
 app.include_router(
     observe_router
+)
+
+app.include_router(
+    locations_router
 )
 
 app.include_router(

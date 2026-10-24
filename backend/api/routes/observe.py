@@ -1,11 +1,13 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy.orm import Session
 
+from database import get_db
 from schemas.errors import ErrorResponse
 from schemas.observe import ForecastResponse
-from services.weather_service import (
-    geocode_city,
-    get_forecast_for_city,
+from services.forecast_history_service import (
+    get_forecast_with_history,
 )
+from services.weather_service import geocode_city
 
 
 router = APIRouter(
@@ -47,11 +49,18 @@ def forecast(
         ...,
         min_length=2,
     ),
+    db: Session = Depends(get_db),
 ):
     """
     Return the stargazing score for tonight's forecast hour with its
     factor breakdown, every scored hour of the observing night, and the
     best window within it.
+
+    The forecast is also saved to the search history. If it cannot be
+    saved, it is still returned, with location_id set to null.
     """
 
-    return get_forecast_for_city(city)
+    return get_forecast_with_history(
+        db=db,
+        city=city,
+    )

@@ -1,0 +1,21 @@
+meta {
+  name: Location forecast history
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/locations/1/forecasts?limit=10
+  body: none
+  auth: none
+}
+
+params:query {
+  limit: 10
+}
+
+docs {
+  One place's saved checks, newest first. Replace 1 with a location_id
+  from a forecast response or from Recent searches. An id that has
+  never been searched returns 404.
+}

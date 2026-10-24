@@ -1,6 +1,7 @@
 import {
   render,
   screen,
+  within,
 } from "@testing-library/react";
 
 import userEvent from "@testing-library/user-event";
@@ -16,12 +17,24 @@ import {
 import ObserveTonight from "./ObserveTonight";
 
 import {
+  getForecastHistory,
+  listRecentSearches,
+} from "../api/historyApi";
+
+import {
   getForecast,
 } from "../api/observeApi";
 
 import {
   getCurrentSpaceWeather,
 } from "../api/spaceWeatherApi";
+
+import type {
+  ForecastHistoryResponse,
+  ForecastSnapshotSummary,
+  RecentSearchListResponse,
+  SavedLocation,
+} from "../api/types/observe";
 
 import type {
   CurrentSpaceWeatherResponse,
@@ -31,6 +44,14 @@ import {
   FORECAST_FIXTURE,
 } from "../test/forecastFixture";
 
+
+vi.mock(
+  "../api/historyApi",
+  () => ({
+    getForecastHistory: vi.fn(),
+    listRecentSearches: vi.fn(),
+  })
+);
 
 vi.mock(
   "../api/observeApi",
@@ -52,6 +73,89 @@ const mockedGetCurrentSpaceWeather =
 
 const mockedGetForecast =
   vi.mocked(getForecast);
+
+const mockedListRecentSearches =
+  vi.mocked(listRecentSearches);
+
+const mockedGetForecastHistory =
+  vi.mocked(getForecastHistory);
+
+
+const NEW_BRUNSWICK: SavedLocation = {
+  ...FORECAST_FIXTURE.location,
+  id: 7,
+};
+
+const PARIS: SavedLocation = {
+  id: 9,
+  name: "Paris",
+  region: "Ile-de-France",
+  country: "France",
+  latitude: 48.85341,
+  longitude: 2.3488,
+  timezone: "Europe/Paris",
+};
+
+function check(
+  retrievedAt: string,
+  forecastTime: string,
+  score: number,
+  rating: ForecastSnapshotSummary["rating"]
+): ForecastSnapshotSummary {
+  return {
+    retrieved_at: retrievedAt,
+    forecast_time: forecastTime,
+    score,
+    rating,
+    limiting_factor: null,
+    best_window_first_hour: null,
+    best_window_last_hour: null,
+    best_window_qualifies: null,
+  };
+}
+
+const RECENT_SEARCHES: RecentSearchListResponse = {
+  count: 2,
+
+  searches: [
+    {
+      location: NEW_BRUNSWICK,
+      latest: check(
+        "2026-10-19T21:05:00Z",
+        "2026-10-19T22:00",
+        76,
+        "Good"
+      ),
+    },
+
+    {
+      location: PARIS,
+      latest: check(
+        "2026-10-19T20:40:00Z",
+        "2026-10-19T22:00",
+        88,
+        "Excellent"
+      ),
+    },
+  ],
+};
+
+const NO_SEARCHES: RecentSearchListResponse = {
+  count: 0,
+  searches: [],
+};
+
+// Newest first: two checks of tonight, then one of the night before.
+const NEW_BRUNSWICK_HISTORY: ForecastHistoryResponse = {
+  location: NEW_BRUNSWICK,
+  count: 3,
+
+  snapshots: [
+    check("2026-10-19T21:05:00Z", "2026-10-19T22:00", 76, "Good"),
+    check("2026-10-19T18:30:00Z", "2026-10-19T22:00", 69, "Good"),
+    check("2026-10-18T20:00:00Z", "2026-10-18T22:00", 81, "Excellent"),
+  ],
+};
 
 
 const SPACE_WEATHER_DATA:
@@ -117,6 +221,16 @@ describe(
       mockedGetForecast
         .mockResolvedValue(
           FORECAST_FIXTURE
+        );
+
+      mockedListRecentSearches
+        .mockResolvedValue(
+          NO_SEARCHES
+        );
+
+      mockedGetForecastHistory
+        .mockResolvedValue(
+          NEW_BRUNSWICK_HISTORY
         );
     });
 
@@ -362,6 +476,241 @@ describe(
             "Limiting factor"
           )
         ).toHaveLength(1);
+      }
+    );
+
+
+    it(
+      "lists recent searches with when each was checked",
+      async () => {
+        mockedListRecentSearches.mockResolvedValue(
+          RECENT_SEARCHES
+        );
+
+        render(<ObserveTonight />);
+
+        const recent = await screen.findByRole(
+          "list",
+          {
+            name: "Recent searches",
+          }
+        );
+
+        expect(
+          within(recent).getByText("New Brunswick, New Jersey")
+        ).toBeInTheDocument();
+
+        expect(
+          within(recent).getByText(
+            /76 Good,\s+checked 2026-10-19 21:05 UTC for 2026-10-19 22:00 local time/
+          )
+        ).toBeInTheDocument();
+      }
+    );
+
+
+    it(
+      "says when nothing has been searched yet",
+      async () => {
+        render(<ObserveTonight />);
+
+        expect(
+          await screen.findByText(
+            "No searches yet. Each city you check is added here."
+          )
+        ).toBeInTheDocument();
+      }
+    );
+
+
+    it(
+      "checks a recent search again when it is chosen",
+      async () => {
+        const user = userEvent.setup();
+
+        mockedListRecentSearches.mockResolvedValue(
+          RECENT_SEARCHES
+        );
+
+        render(<ObserveTonight />);
+
+        await user.click(
+          await screen.findByRole(
+            "button",
+            {
+              name: /Paris, Ile-de-France/,
+            }
+          )
+        );
+
+        expect(mockedGetForecast).toHaveBeenCalledWith("Paris");
+
+        expect(
+          screen.getByRole(
+            "textbox",
+            {
+              name: "City",
+            }
+          )
+        ).toHaveValue("Paris");
+      }
+    );
+
+
+    it(
+      "refreshes the recent searches after a search",
+      async () => {
+        const user = userEvent.setup();
+
+        render(<ObserveTonight />);
+
+        await screen.findByText(
+          /No searches yet/
+        );
+
+        expect(mockedListRecentSearches).toHaveBeenCalledTimes(1);
+
+        await user.type(
+          screen.getByRole(
+            "textbox",
+            {
+              name: "City",
+            }
+          ),
+          "New Brunswick{Enter}"
+        );
+
+        await screen.findByText(
+          FORECAST_FIXTURE.stargazing.explanation
+        );
+
+        expect(mockedListRecentSearches).toHaveBeenCalledTimes(2);
+      }
+    );
+
+
+    it(
+      "shows earlier checks, comparing only the same night",
+      async () => {
+        const user = userEvent.setup();
+
+        render(<ObserveTonight />);
+
+        await user.type(
+          screen.getByRole(
+            "textbox",
+            {
+              name: "City",
+            }
+          ),
+          "New Brunswick{Enter}"
+        );
+
+        const checks = await screen.findByRole(
+          "list",
+          {
+            name: "Earlier checks",
+          }
+        );
+
+        expect(mockedGetForecastHistory).toHaveBeenCalledWith(7);
+
+        const entries = within(checks).getAllByRole("listitem");
+
+        expect(entries).toHaveLength(3);
+
+        expect(
+          within(entries[0]).getByText(
+            "+7 since the previous check"
+          )
+        ).toBeInTheDocument();
+
+        expect(
+          within(entries[0]).getByText(/\(latest\)/)
+        ).toBeInTheDocument();
+
+        // The check before it was for the same night, and the one after
+        // that for a different night, so neither has a change to show.
+        expect(
+          within(entries[1]).queryByText(/since the previous check/)
+        ).not.toBeInTheDocument();
+
+        expect(
+          within(entries[2]).getByText(
+            /for 2026-10-18 22:00 local time/
+          )
+        ).toBeInTheDocument();
+      }
+    );
+
+
+    it(
+      "explains when a forecast could not be saved to the history",
+      async () => {
+        const user = userEvent.setup();
+
+        mockedGetForecast.mockResolvedValue({
+          ...FORECAST_FIXTURE,
+          location_id: null,
+        });
+
+        render(<ObserveTonight />);
+
+        await user.type(
+          screen.getByRole(
+            "textbox",
+            {
+              name: "City",
+            }
+          ),
+          "New Brunswick{Enter}"
+        );
+
+        expect(
+          await screen.findByText(
+            /could not be saved to the history/
+          )
+        ).toBeInTheDocument();
+
+        expect(mockedGetForecastHistory).not.toHaveBeenCalled();
+      }
+    );
+
+
+    it(
+      "keeps the forecast working when the history is unavailable",
+      async () => {
+        const user = userEvent.setup();
+
+        mockedListRecentSearches.mockRejectedValue(
+          new Error(
+            "Search history is unavailable because the database could not be reached."
+          )
+        );
+
+        render(<ObserveTonight />);
+
+        expect(
+          await screen.findByText(
+            /Search history is unavailable/
+          )
+        ).toBeInTheDocument();
+
+        await user.type(
+          screen.getByRole(
+            "textbox",
+            {
+              name: "City",
+            }
+          ),
+          "New Brunswick{Enter}"
+        );
+
+        expect(
+          await screen.findByText(
+            FORECAST_FIXTURE.stargazing.explanation
+          )
+        ).toBeInTheDocument();
       }
     );
   }

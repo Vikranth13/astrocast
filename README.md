@@ -517,13 +517,13 @@ Check for schema drift:
 python -m alembic check
 ```
 
-The initial AstroCast database revision is:
+After the upgrade, `alembic current` reports the latest revision:
 
 ```text
-e2461684f17c
+3b8555bec648 (head)
 ```
 
-This is an Alembic migration identifier, not a Git commit ID.
+This is an Alembic migration identifier, not a Git commit ID. Run `python -m alembic upgrade head` again after pulling changes that add a migration. The full list is in `docs/database.md`.
 
 ### 6. Start the Backend
 

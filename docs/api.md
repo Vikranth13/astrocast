@@ -65,6 +65,8 @@ Internal failures are logged with their traceback on the server and reported gen
 | GET | `/health` | Backend and database health |
 | GET | `/geocode?city=` | Converts a city name into location data |
 | GET | `/forecast?city=` | Local stargazing forecast and score |
+| GET | `/api/locations/recent` | Recently searched places with their latest check |
+| GET | `/api/locations/{id}/forecasts` | One place's saved forecast checks |
 | GET | `/apod` | NASA Astronomy Picture of the Day |
 | GET | `/api/space-weather/current` | Newest stored Kp observation |
 | GET | `/api/space-weather/risk` | Deterministic risk assessment |
@@ -113,9 +115,68 @@ The response contract is `ForecastResponse` in `backend/schemas/observe.py`. It 
 - `hourly`: every hour of the observing night, scored with the same rules. The night is a fixed window from 18:00 for twelve readings, until Week 6 adds real sunset and twilight times.
 - `best_window`: the longest run of consecutive hours rated Good or better (60 and above), with the earliest run winning a tie. When no hour reaches Good, it is the single best hour with `qualifies: false`. It is `null` only when no hourly readings exist.
 
+- `location_id`: the place's id in the search history, or `null` when the forecast could not be saved there.
+
 All times are Open-Meteo local times for the location, such as `2026-10-19T22:00`, with no UTC offset.
 
 This route calls Open-Meteo live, so it is the one place a network failure is visible to the user. Upstream failures return 502 with a fixed message; the upstream error detail is written to the server log only.
+
+Each successful forecast is also saved to the search history (see below). Saving never decides whether the forecast is returned: while PostgreSQL is unavailable, the forecast still arrives, with `location_id: null`.
+
+## Search History
+
+There are no user accounts. The history belongs to this backend and is shared by everyone using it.
+
+**Saving rule.** At most one snapshot per place, forecast hour, and hour of checking. A repeat search within 60 minutes for the same place and forecast hour updates that snapshot instead of adding another. Repeat clicks, the Dashboard refreshing, and development mode's doubled requests therefore don't fill the history with near-identical rows.
+
+Both routes return 503 with code `service_unavailable` when the database cannot be reached.
+
+### `GET /api/locations/recent`
+
+| Parameter | Type | Notes |
+|---|---|---|
+| `limit` | int | 1–20, default 5 |
+
+Recently searched places, most recently checked first. Each entry has `location` (with its `id`) and `latest`, the most recent check:
+
+```json
+{
+  "count": 1,
+  "searches": [
+    {
+      "location": {
+        "id": 7,
+        "name": "Paris",
+        "region": "Ile-de-France",
+        "country": "France",
+        "latitude": 48.85341,
+        "longitude": 2.3488,
+        "timezone": "Europe/Paris"
+      },
+      "latest": {
+        "retrieved_at": "2026-10-23T20:00:00Z",
+        "forecast_time": "2026-10-23T22:00",
+        "score": 81,
+        "rating": "Excellent",
+        "limiting_factor": null,
+        "best_window_first_hour": "2026-10-23T21:00",
+        "best_window_last_hour": "2026-10-24T03:00",
+        "best_window_qualifies": true
+      }
+    }
+  ]
+}
+```
+
+`retrieved_at` is when the forecast was fetched, in UTC. `forecast_time` is the local hour it was for, so a check of one night is never mistaken for a change in another.
+
+### `GET /api/locations/{location_id}/forecasts`
+
+| Parameter | Type | Notes |
+|---|---|---|
+| `limit` | int | 1–50, default 10 |
+
+One place's saved checks, newest first, as `location`, `count`, and `snapshots`, each snapshot shaped like `latest` above. Returns 404 with code `not_found` for an id that has never been searched.
 
 ### `GET /apod`
 

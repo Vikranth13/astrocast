@@ -1,7 +1,13 @@
 import {
   useEffect,
+  useMemo,
   useState,
 } from "react";
+
+import {
+  getForecastHistory,
+  listRecentSearches,
+} from "../api/historyApi";
 
 import {
   getForecast,
@@ -19,10 +25,13 @@ import type {
   CurrentSpaceWeatherResponse,
 } from "../api/types/spaceWeather";
 
+import SourceState from "../components/SourceState";
 import SpaceWeatherCard from "../components/SpaceWeatherCard";
 
 import CitySearch from "../components/observe/CitySearch";
+import EarlierChecks from "../components/observe/EarlierChecks";
 import HourlyConditionsTable from "../components/observe/HourlyConditionsTable";
+import RecentSearches from "../components/observe/RecentSearches";
 import ScoreBreakdown from "../components/observe/ScoreBreakdown";
 import ScoreReadout from "../components/observe/ScoreReadout";
 
@@ -35,6 +44,10 @@ import PageSection from "../components/ui/PageSection";
 import PlaceholderCard from "../components/ui/PlaceholderCard";
 
 import {
+  useApiResource,
+} from "../hooks/useApiResource";
+
+import {
   formatLocalTime,
 } from "../utils/format";
 
@@ -42,6 +55,14 @@ import "../components/observe/observe.css";
 
 const SEARCH_PROMPT =
   "Search for a city to see tonight hour by hour.";
+
+const RECENT_SEARCH_LIMIT = 5;
+
+function fetchRecentSearches() {
+  return listRecentSearches(
+    RECENT_SEARCH_LIMIT
+  );
+}
 
 const WEEK_SIX_PLACEHOLDERS = [
   {
@@ -94,6 +115,33 @@ function ObserveTonight() {
     setSpaceWeatherError,
   ] = useState("");
 
+  // A new loader identity makes the list load again. Replacing it after
+  // each successful search brings the city just checked to the top. The
+  // cache key keeps the previous list on screen while that happens.
+  const [loadRecent, setLoadRecent] = useState(
+    () => fetchRecentSearches
+  );
+
+  const recentSearches = useApiResource(
+    loadRecent,
+    "locations:recent"
+  );
+
+  const loadHistory = useMemo(
+    () => {
+      const locationId = forecast?.location_id;
+
+      return locationId
+        ? () => getForecastHistory(locationId)
+        : null;
+    },
+    [forecast]
+  );
+
+  const earlierChecks = useApiResource(
+    loadHistory
+  );
+
   useEffect(() => {
     let ignoreResult = false;
 
@@ -136,8 +184,10 @@ function ObserveTonight() {
     };
   }, []);
 
-  async function handleCheckSky() {
-    const trimmedCity = city.trim();
+  async function runSearch(
+    cityName: string
+  ) {
+    const trimmedCity = cityName.trim();
 
     if (!trimmedCity) {
       setErrorMessage(
@@ -156,6 +206,10 @@ function ObserveTonight() {
       );
 
       setForecast(data);
+
+      setLoadRecent(
+        () => () => fetchRecentSearches()
+      );
     } catch (error) {
       if (error instanceof Error) {
         setErrorMessage(
@@ -169,6 +223,18 @@ function ObserveTonight() {
     } finally {
       setIsLoading(false);
     }
+  }
+
+  function handleCheckSky() {
+    runSearch(city);
+  }
+
+  function handleRecentSearch(
+    cityName: string
+  ) {
+    setCity(cityName);
+
+    runSearch(cityName);
   }
 
   return (
@@ -195,6 +261,30 @@ function ObserveTonight() {
             />
           )}
         </div>
+
+        <PageSection
+          title="Recent searches"
+          description="Places searched on this AstroCast server, most recent first. Choose one to check it again."
+        >
+          <SourceState
+            resource={recentSearches}
+            loadingMessage="Loading recent searches..."
+          >
+            {(data) => (
+              data.count === 0 ? (
+                <EmptyState
+                  message="No searches yet. Each city you check is added here."
+                />
+              ) : (
+                <RecentSearches
+                  searches={data.searches}
+                  disabled={isLoading}
+                  onSelect={handleRecentSearch}
+                />
+              )
+            )}
+          </SourceState>
+        </PageSection>
 
         <PageSection
           title="Tonight's forecast"
@@ -308,6 +398,41 @@ function ObserveTonight() {
             </Card>
           )}
         </PageSection>
+
+        {forecast && (
+          <PageSection
+            title="Earlier checks"
+            description={`Saved forecasts for ${forecast.location.name}, newest first. Checks within the same hour update one entry.`}
+          >
+            {forecast.location_id === null ? (
+              <EmptyState
+                message="This forecast could not be saved to the history, so earlier checks are unavailable right now. The forecast above is unaffected."
+              />
+            ) : (
+              <SourceState
+                resource={earlierChecks}
+                loadingMessage="Loading earlier checks..."
+              >
+                {(history) => (
+                  <div className="ui-stack">
+                    <EarlierChecks
+                      snapshots={history.snapshots}
+                    />
+
+                    {history.count === 1 && (
+                      <p className="ui-caption">
+                        This is the first saved check for{" "}
+                        {forecast.location.name}. Check again in an
+                        hour or more to see how tonight's forecast
+                        changes.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </SourceState>
+            )}
+          </PageSection>
+        )}
 
         <PageSection
           title="Space weather"

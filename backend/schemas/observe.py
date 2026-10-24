@@ -7,6 +7,7 @@ them in the location's own time zone with no UTC offset, for example
 zone that the data does not carry.
 """
 
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -156,6 +157,10 @@ class BestObservingWindow(BaseModel):
 class ForecastResponse(BaseModel):
     """
     Tonight's local observing forecast for one city.
+
+    location_id identifies the place in the search history. It is null
+    when the history could not be saved, for example while the database
+    is unavailable. The forecast itself does not depend on it.
     """
 
     location: ForecastLocation
@@ -169,3 +174,81 @@ class ForecastResponse(BaseModel):
     hourly: list[HourlyForecast]
 
     best_window: BestObservingWindow | None
+
+    location_id: int | None = None
+
+
+class SavedLocation(ForecastLocation):
+    """
+    A place that has been searched, as stored in the history.
+    """
+
+    id: int
+
+
+class ForecastSnapshotSummary(BaseModel):
+    """
+    What one earlier check of a place's forecast showed.
+
+    retrieved_at is when AstroCast fetched the forecast, in UTC.
+    forecast_time is the local hour the forecast was for, so checks of
+    different nights are never mistaken for a change in one night.
+    """
+
+    retrieved_at: datetime
+
+    forecast_time: str
+
+    score: int = Field(
+        ge=0,
+        le=100,
+    )
+
+    rating: StargazingRating
+
+    limiting_factor: str | None
+
+    best_window_first_hour: str | None
+
+    best_window_last_hour: str | None
+
+    best_window_qualifies: bool | None
+
+
+class RecentSearch(BaseModel):
+    """
+    A searched place with its most recent check.
+    """
+
+    location: SavedLocation
+
+    latest: ForecastSnapshotSummary
+
+
+class RecentSearchListResponse(BaseModel):
+    """
+    Recently searched places, most recently checked first.
+
+    There are no user accounts, so the history is shared by everyone
+    using this backend.
+    """
+
+    count: int = Field(
+        ge=0,
+    )
+
+    searches: list[RecentSearch]
+
+
+class ForecastHistoryResponse(BaseModel):
+    """
+    One place's saved forecast checks, newest first.
+    """
+
+    location: SavedLocation
+
+    count: int = Field(
+        ge=0,
+    )
+
+    snapshots: list[ForecastSnapshotSummary]

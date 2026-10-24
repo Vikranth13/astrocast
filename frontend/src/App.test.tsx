@@ -46,6 +46,18 @@ vi.mock(
 );
 
 vi.mock(
+  "./api/historyApi",
+  () => {
+    const pending = () => new Promise(() => {});
+
+    return {
+      getForecastHistory: vi.fn(pending),
+      listRecentSearches: vi.fn(pending),
+    };
+  }
+);
+
+vi.mock(
   "./api/spaceWeatherApi",
   () => {
     const pending = () => new Promise(() => {});
