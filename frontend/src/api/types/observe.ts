@@ -110,6 +110,12 @@ export type RecentSearchListResponse = {
   searches: RecentSearch[];
 };
 
+// DELETE /api/locations
+export type ClearHistoryResponse = {
+  deleted_locations: number;
+  deleted_snapshots: number;
+};
+
 // GET /api/locations/{location_id}/forecasts
 export type ForecastHistoryResponse = {
   location: SavedLocation;

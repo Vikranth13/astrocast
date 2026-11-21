@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from sqlalchemy import delete
 from sqlalchemy.dialects.postgresql import (
     insert as postgresql_insert,
 )
@@ -93,3 +94,22 @@ def get_location_by_id(
         Location,
         location_id,
     )
+
+
+def delete_all_locations(
+    db: Session,
+) -> int:
+    """
+    Delete every searched place and return how many there were.
+
+    Each place's forecast snapshots go with it, through the foreign
+    key's ON DELETE CASCADE.
+    """
+
+    result = db.execute(
+        delete(
+            Location
+        )
+    )
+
+    return result.rowcount

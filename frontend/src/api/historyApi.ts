@@ -1,8 +1,10 @@
 import {
+  apiDelete,
   apiGet,
 } from "./client";
 
 import type {
+  ClearHistoryResponse,
   ForecastHistoryResponse,
   RecentSearchListResponse,
 } from "./types/observe";
@@ -35,6 +37,17 @@ export function getForecastHistory(
         limit,
       },
       fallbackMessage: "Failed to fetch earlier checks.",
+    }
+  );
+}
+
+// Deletes every searched place and saved check, for everyone using the
+// backend. It cannot be undone, so callers confirm with the user first.
+export function clearSearchHistory(): Promise<ClearHistoryResponse> {
+  return apiDelete<ClearHistoryResponse>(
+    "/api/locations",
+    {
+      fallbackMessage: "Failed to clear the search history.",
     }
   );
 }

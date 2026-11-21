@@ -150,26 +150,36 @@ async function readErrorResponse(
   });
 }
 
-export type ApiGetOptions = {
+export type ApiRequestOptions = {
   params?: QueryParams;
   // Shown only when a failed response does not carry the standard error
   // envelope. Otherwise the backend's own message is used.
   fallbackMessage: string;
 };
 
-// The only place in the application that calls fetch.
-export async function apiGet<T>(
+type ApiMethod =
+  | "GET"
+  | "DELETE";
+
+// The only place in the application that calls fetch. Every method
+// shares the same error handling, so a failed delete reads exactly like
+// a failed read.
+async function apiRequest<T>(
+  method: ApiMethod,
   path: string,
   {
     params,
     fallbackMessage,
-  }: ApiGetOptions
+  }: ApiRequestOptions
 ): Promise<T> {
   let response: Response;
 
   try {
     response = await fetch(
-      buildApiUrl(path, params)
+      buildApiUrl(path, params),
+      {
+        method,
+      }
     );
   } catch {
     throw new ApiRequestError({
@@ -195,4 +205,26 @@ export async function apiGet<T>(
       code: "invalid_response",
     });
   }
+}
+
+export function apiGet<T>(
+  path: string,
+  options: ApiRequestOptions
+): Promise<T> {
+  return apiRequest<T>(
+    "GET",
+    path,
+    options
+  );
+}
+
+export function apiDelete<T>(
+  path: string,
+  options: ApiRequestOptions
+): Promise<T> {
+  return apiRequest<T>(
+    "DELETE",
+    path,
+    options
+  );
 }

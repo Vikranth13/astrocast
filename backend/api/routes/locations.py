@@ -4,10 +4,12 @@ from sqlalchemy.orm import Session
 from database import get_db
 from schemas.errors import ErrorResponse
 from schemas.observe import (
+    ClearHistoryResponse,
     ForecastHistoryResponse,
     RecentSearchListResponse,
 )
 from services.forecast_history_service import (
+    clear_search_history,
     get_forecast_history,
     get_recent_searches,
 )
@@ -56,6 +58,29 @@ def recent_searches(
     return get_recent_searches(
         db=db,
         limit=limit,
+    )
+
+
+@router.delete(
+    "",
+    response_model=ClearHistoryResponse,
+    responses=HISTORY_UNAVAILABLE_RESPONSE,
+    summary="Clear the search history",
+)
+def clear_history(
+    db: Session = Depends(get_db),
+):
+    """
+    Delete every searched place and every saved forecast check, and
+    report how many were removed. This cannot be undone.
+
+    There are no user accounts, so this clears the history for everyone
+    using this backend. Like the ingestion routes, it is not
+    authenticated.
+    """
+
+    return clear_search_history(
+        db=db,
     )
 
 

@@ -29,12 +29,14 @@ from repositories.forecast_snapshot_repository import (
     list_latest_snapshot_per_location,
 )
 from repositories.location_repository import (
+    delete_all_locations,
     upsert_location,
 )
 from services import forecast_history_service
 from services.forecast_history_service import (
     SNAPSHOT_REFRESH_WINDOW,
     build_snapshot_values,
+    clear_search_history,
     get_forecast_history,
     get_forecast_with_history,
     get_recent_searches,
@@ -496,6 +498,7 @@ class CapturingSession:
 
         return SimpleNamespace(
             scalar_one=lambda: 7,
+            rowcount=2,
             all=lambda: [],
         )
 
@@ -553,3 +556,86 @@ def test_recent_searches_take_the_newest_snapshot_per_place() -> None:
     ) in sql
 
     assert "ORDER BY anon_1.retrieved_at DESC" in sql
+
+
+def test_clearing_deletes_every_place_and_lets_snapshots_cascade() -> None:
+    db = CapturingSession()
+
+    deleted = delete_all_locations(db)
+
+    assert deleted == 2
+
+    sql = str(
+        compiled(db.statement)
+    )
+
+    # One statement for the places. The snapshots go with them through
+    # the foreign key, so nothing deletes them separately.
+    assert sql.strip() == "DELETE FROM locations"
+
+
+# ---------------------------------------------------------------
+# Clearing the history
+# ---------------------------------------------------------------
+
+def test_clearing_reports_what_it_removed(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        forecast_history_service,
+        "count_snapshots",
+        lambda db: 3,
+    )
+
+    monkeypatch.setattr(
+        forecast_history_service,
+        "delete_all_locations",
+        lambda db: 2,
+    )
+
+    db = FakeSession()
+
+    response = clear_search_history(db)
+
+    assert response.deleted_locations == 2
+    assert response.deleted_snapshots == 3
+    assert db.commits == 1
+
+
+def test_a_failed_clear_changes_nothing_and_reports_503(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        forecast_history_service,
+        "count_snapshots",
+        lambda db: 3,
+    )
+
+    monkeypatch.setattr(
+        forecast_history_service,
+        "delete_all_locations",
+        database_down,
+    )
+
+    db = FakeSession()
+
+    with pytest.raises(
+        HTTPException
+    ) as captured_error:
+        clear_search_history(db)
+
+    assert captured_error.value.status_code == 503
+    assert db.rollbacks == 1
+    assert db.commits == 0
+
+
+def test_clear_route_without_a_database_is_503() -> None:
+    response = client.delete(
+        "/api/locations"
+    )
+
+    assert response.status_code == 503
+
+    assert response.json()["error"]["code"] == (
+        "service_unavailable"
+    )

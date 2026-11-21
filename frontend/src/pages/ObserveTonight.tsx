@@ -5,6 +5,7 @@ import {
 } from "react";
 
 import {
+  clearSearchHistory,
   getForecastHistory,
   listRecentSearches,
 } from "../api/historyApi";
@@ -29,6 +30,7 @@ import SourceState from "../components/SourceState";
 import SpaceWeatherCard from "../components/SpaceWeatherCard";
 
 import CitySearch from "../components/observe/CitySearch";
+import ClearHistoryControl from "../components/observe/ClearHistoryControl";
 import EarlierChecks from "../components/observe/EarlierChecks";
 import HourlyConditionsTable from "../components/observe/HourlyConditionsTable";
 import RecentSearches from "../components/observe/RecentSearches";
@@ -44,6 +46,7 @@ import PageSection from "../components/ui/PageSection";
 import PlaceholderCard from "../components/ui/PlaceholderCard";
 
 import {
+  forgetCachedResource,
   useApiResource,
 } from "../hooks/useApiResource";
 
@@ -57,6 +60,8 @@ const SEARCH_PROMPT =
   "Search for a city to see tonight hour by hour.";
 
 const RECENT_SEARCH_LIMIT = 5;
+
+const RECENT_SEARCHES_CACHE_KEY = "locations:recent";
 
 function fetchRecentSearches() {
   return listRecentSearches(
@@ -124,8 +129,14 @@ function ObserveTonight() {
 
   const recentSearches = useApiResource(
     loadRecent,
-    "locations:recent"
+    RECENT_SEARCHES_CACHE_KEY
   );
+
+  // Set when the history is cleared while a forecast is on screen. Its
+  // earlier checks were deleted, so they are not shown again until the
+  // next search starts a new history.
+  const [isHistoryCleared, setIsHistoryCleared] =
+    useState(false);
 
   const loadHistory = useMemo(
     () => {
@@ -207,6 +218,8 @@ function ObserveTonight() {
 
       setForecast(data);
 
+      setIsHistoryCleared(false);
+
       setLoadRecent(
         () => () => fetchRecentSearches()
       );
@@ -235,6 +248,23 @@ function ObserveTonight() {
     setCity(cityName);
 
     runSearch(cityName);
+  }
+
+  // A failure is left to propagate, so the confirmation stays open and
+  // shows the error.
+  async function handleClearHistory() {
+    await clearSearchHistory();
+
+    // The cached list describes rows that no longer exist.
+    forgetCachedResource(
+      RECENT_SEARCHES_CACHE_KEY
+    );
+
+    setLoadRecent(
+      () => () => fetchRecentSearches()
+    );
+
+    setIsHistoryCleared(true);
   }
 
   return (
@@ -276,11 +306,17 @@ function ObserveTonight() {
                   message="No searches yet. Each city you check is added here."
                 />
               ) : (
-                <RecentSearches
-                  searches={data.searches}
-                  disabled={isLoading}
-                  onSelect={handleRecentSearch}
-                />
+                <div className="ui-stack">
+                  <RecentSearches
+                    searches={data.searches}
+                    disabled={isLoading}
+                    onSelect={handleRecentSearch}
+                  />
+
+                  <ClearHistoryControl
+                    onConfirm={handleClearHistory}
+                  />
+                </div>
               )
             )}
           </SourceState>
@@ -404,7 +440,11 @@ function ObserveTonight() {
             title="Earlier checks"
             description={`Saved forecasts for ${forecast.location.name}, newest first. Checks within the same hour update one entry.`}
           >
-            {forecast.location_id === null ? (
+            {isHistoryCleared ? (
+              <EmptyState
+                message={`The search history was cleared. Your next check of ${forecast.location.name} starts a new one.`}
+              />
+            ) : forecast.location_id === null ? (
               <EmptyState
                 message="This forecast could not be saved to the history, so earlier checks are unavailable right now. The forecast above is unaffected."
               />

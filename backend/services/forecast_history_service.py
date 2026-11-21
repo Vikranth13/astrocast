@@ -23,16 +23,19 @@ from models.forecast_snapshot import ForecastSnapshot
 from models.location import Location
 from repositories.forecast_snapshot_repository import (
     add_snapshot,
+    count_snapshots,
     get_latest_snapshot,
     list_latest_snapshot_per_location,
     list_snapshots,
     refresh_snapshot,
 )
 from repositories.location_repository import (
+    delete_all_locations,
     get_location_by_id,
     upsert_location,
 )
 from schemas.observe import (
+    ClearHistoryResponse,
     ForecastHistoryResponse,
     ForecastSnapshotSummary,
     RecentSearch,
@@ -320,4 +323,52 @@ def get_forecast_history(
         location=to_saved_location(location),
         count=len(summaries),
         snapshots=summaries,
+    )
+
+
+# ---------------------------------------------------------------
+# Clearing the history
+# ---------------------------------------------------------------
+
+def clear_search_history(
+    db: Session,
+) -> ClearHistoryResponse:
+    """
+    Delete every searched place and every saved check, in one
+    transaction.
+
+    The snapshots are counted first, because they are removed by the
+    database's cascade rather than by a statement that reports them.
+    The history is shared, so this clears it for everyone using the
+    backend.
+    """
+
+    try:
+        deleted_snapshots = count_snapshots(db)
+
+        deleted_locations = delete_all_locations(db)
+
+        db.commit()
+
+    except SQLAlchemyError as error:
+        logger.warning(
+            "Could not clear the search history",
+            exc_info=True,
+        )
+
+        try:
+            db.rollback()
+        except SQLAlchemyError:
+            logger.warning(
+                "Rolling back the failed clear also failed",
+            )
+
+        raise HTTPException(
+            status_code=503,
+            detail=HISTORY_UNAVAILABLE_MESSAGE,
+        ) from error
+
+    return ClearHistoryResponse(
+        deleted_locations=deleted_locations,
+        deleted_snapshots=deleted_snapshots,
     )

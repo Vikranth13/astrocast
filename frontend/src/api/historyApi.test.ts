@@ -8,6 +8,7 @@ import {
 } from "vitest";
 
 import {
+  clearSearchHistory,
   getForecastHistory,
   listRecentSearches,
 } from "./historyApi";
@@ -60,6 +61,29 @@ describe(
 
         expect(url.pathname).toBe("/api/locations/7/forecasts");
         expect(url.searchParams.get("limit")).toBe("3");
+      }
+    );
+  }
+);
+
+
+describe(
+  "clearing the history",
+  () => {
+    it(
+      "sends a DELETE to the locations collection",
+      async () => {
+        await clearSearchHistory();
+
+        const [input, init] = fetchMock.mock.calls[0];
+
+        expect(
+          new URL(String(input)).pathname
+        ).toBe("/api/locations");
+
+        expect(init).toEqual({
+          method: "DELETE",
+        });
       }
     );
   }

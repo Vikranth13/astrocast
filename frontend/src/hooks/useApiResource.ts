@@ -48,6 +48,14 @@ export function clearApiResourceCache(): void {
   responseCache.clear();
 }
 
+// Drops one cached response after the data behind it has been deleted,
+// so the next load shows its loading state rather than the old data.
+export function forgetCachedResource(
+  cacheKey: string
+): void {
+  responseCache.delete(cacheKey);
+}
+
 // Reshapes ready data and passes every other state through, so a card
 // can render a summary of a response without losing its loading and
 // error states.

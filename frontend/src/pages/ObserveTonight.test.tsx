@@ -17,6 +17,7 @@ import {
 import ObserveTonight from "./ObserveTonight";
 
 import {
+  clearSearchHistory,
   getForecastHistory,
   listRecentSearches,
 } from "../api/historyApi";
@@ -48,6 +49,7 @@ import {
 vi.mock(
   "../api/historyApi",
   () => ({
+    clearSearchHistory: vi.fn(),
     getForecastHistory: vi.fn(),
     listRecentSearches: vi.fn(),
   })
@@ -79,6 +81,9 @@ const mockedListRecentSearches =
 
 const mockedGetForecastHistory =
   vi.mocked(getForecastHistory);
+
+const mockedClearSearchHistory =
+  vi.mocked(clearSearchHistory);
 
 
 const NEW_BRUNSWICK: SavedLocation = {
@@ -711,6 +716,243 @@ describe(
             FORECAST_FIXTURE.stargazing.explanation
           )
         ).toBeInTheDocument();
+      }
+    );
+
+
+    it(
+      "clears the history only after it is confirmed",
+      async () => {
+        const user = userEvent.setup();
+
+        mockedListRecentSearches.mockResolvedValueOnce(
+          RECENT_SEARCHES
+        );
+
+        mockedClearSearchHistory.mockResolvedValue({
+          deleted_locations: 2,
+          deleted_snapshots: 5,
+        });
+
+        render(<ObserveTonight />);
+
+        await user.click(
+          await screen.findByRole(
+            "button",
+            {
+              name: "Clear history",
+            }
+          )
+        );
+
+        // Asking is not clearing.
+        expect(mockedClearSearchHistory).not.toHaveBeenCalled();
+
+        const confirm = screen.getByRole(
+          "group",
+          {
+            name: "Confirm clearing the search history",
+          }
+        );
+
+        // Focus starts on the safe choice.
+        expect(
+          within(confirm).getByRole(
+            "button",
+            {
+              name: "Cancel",
+            }
+          )
+        ).toHaveFocus();
+
+        await user.click(
+          within(confirm).getByRole(
+            "button",
+            {
+              name: "Yes, clear history",
+            }
+          )
+        );
+
+        expect(mockedClearSearchHistory).toHaveBeenCalledTimes(1);
+
+        expect(
+          await screen.findByText(
+            "No searches yet. Each city you check is added here."
+          )
+        ).toBeInTheDocument();
+      }
+    );
+
+
+    it(
+      "keeps the history when clearing is cancelled",
+      async () => {
+        const user = userEvent.setup();
+
+        mockedListRecentSearches.mockResolvedValue(
+          RECENT_SEARCHES
+        );
+
+        render(<ObserveTonight />);
+
+        await user.click(
+          await screen.findByRole(
+            "button",
+            {
+              name: "Clear history",
+            }
+          )
+        );
+
+        await user.click(
+          screen.getByRole(
+            "button",
+            {
+              name: "Cancel",
+            }
+          )
+        );
+
+        expect(mockedClearSearchHistory).not.toHaveBeenCalled();
+
+        expect(
+          screen.getByRole(
+            "list",
+            {
+              name: "Recent searches",
+            }
+          )
+        ).toBeInTheDocument();
+      }
+    );
+
+
+    it(
+      "keeps the list and says why when clearing fails",
+      async () => {
+        const user = userEvent.setup();
+
+        mockedListRecentSearches.mockResolvedValue(
+          RECENT_SEARCHES
+        );
+
+        mockedClearSearchHistory.mockRejectedValue(
+          new Error(
+            "Search history is unavailable because the database could not be reached."
+          )
+        );
+
+        render(<ObserveTonight />);
+
+        await user.click(
+          await screen.findByRole(
+            "button",
+            {
+              name: "Clear history",
+            }
+          )
+        );
+
+        await user.click(
+          screen.getByRole(
+            "button",
+            {
+              name: "Yes, clear history",
+            }
+          )
+        );
+
+        const confirm = screen.getByRole(
+          "group",
+          {
+            name: "Confirm clearing the search history",
+          }
+        );
+
+        expect(
+          await within(confirm).findByText(
+            /database could not be reached/
+          )
+        ).toBeInTheDocument();
+
+        expect(
+          screen.getByRole(
+            "list",
+            {
+              name: "Recent searches",
+            }
+          )
+        ).toBeInTheDocument();
+      }
+    );
+
+
+    it(
+      "stops showing earlier checks that were just cleared",
+      async () => {
+        const user = userEvent.setup();
+
+        mockedListRecentSearches.mockResolvedValue(
+          RECENT_SEARCHES
+        );
+
+        mockedClearSearchHistory.mockResolvedValue({
+          deleted_locations: 2,
+          deleted_snapshots: 5,
+        });
+
+        render(<ObserveTonight />);
+
+        await user.type(
+          screen.getByRole(
+            "textbox",
+            {
+              name: "City",
+            }
+          ),
+          "New Brunswick{Enter}"
+        );
+
+        await screen.findByRole(
+          "list",
+          {
+            name: "Earlier checks",
+          }
+        );
+
+        await user.click(
+          screen.getByRole(
+            "button",
+            {
+              name: "Clear history",
+            }
+          )
+        );
+
+        await user.click(
+          screen.getByRole(
+            "button",
+            {
+              name: "Yes, clear history",
+            }
+          )
+        );
+
+        expect(
+          await screen.findByText(
+            "The search history was cleared. Your next check of New Brunswick starts a new one."
+          )
+        ).toBeInTheDocument();
+
+        expect(
+          screen.queryByRole(
+            "list",
+            {
+              name: "Earlier checks",
+            }
+          )
+        ).not.toBeInTheDocument();
       }
     );
   }

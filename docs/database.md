@@ -90,6 +90,8 @@ The index serves both history queries: the latest snapshot for each place, and o
 
 **Failure rule.** A failed save is rolled back and logged, and the forecast is still returned, with a null `location_id`. `/forecast` must keep working while PostgreSQL is unavailable.
 
+**Clearing.** `DELETE /api/locations` deletes every row in `locations`, and the cascade removes every snapshot with it, in one transaction.
+
 ### space_weather_alerts
 
 Stores normalized alerts, warnings, and notices from space-weather sources.

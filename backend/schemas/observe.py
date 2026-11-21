@@ -240,6 +240,20 @@ class RecentSearchListResponse(BaseModel):
     searches: list[RecentSearch]
 
 
+class ClearHistoryResponse(BaseModel):
+    """
+    What clearing the search history removed.
+    """
+
+    deleted_locations: int = Field(
+        ge=0,
+    )
+
+    deleted_snapshots: int = Field(
+        ge=0,
+    )
+
+
 class ForecastHistoryResponse(BaseModel):
     """
     One place's saved forecast checks, newest first.

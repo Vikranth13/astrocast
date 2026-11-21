@@ -67,6 +67,7 @@ Internal failures are logged with their traceback on the server and reported gen
 | GET | `/forecast?city=` | Local stargazing forecast and score |
 | GET | `/api/locations/recent` | Recently searched places with their latest check |
 | GET | `/api/locations/{id}/forecasts` | One place's saved forecast checks |
+| DELETE | `/api/locations` | Clear the whole search history |
 | GET | `/apod` | NASA Astronomy Picture of the Day |
 | GET | `/api/space-weather/current` | Newest stored Kp observation |
 | GET | `/api/space-weather/risk` | Deterministic risk assessment |
@@ -177,6 +178,19 @@ Recently searched places, most recently checked first. Each entry has `location`
 | `limit` | int | 1–50, default 10 |
 
 One place's saved checks, newest first, as `location`, `count`, and `snapshots`, each snapshot shaped like `latest` above. Returns 404 with code `not_found` for an id that has never been searched.
+
+### `DELETE /api/locations`
+
+Deletes every searched place and every saved check, in one transaction, and reports what it removed:
+
+```json
+{
+  "deleted_locations": 2,
+  "deleted_snapshots": 5
+}
+```
+
+Snapshots go with their places through the foreign key's `ON DELETE CASCADE`. This cannot be undone, and because the history is shared it clears it for everyone using the backend. Like the ingestion routes, it is **not authenticated**. Observe Tonight asks for confirmation before calling it.
 
 ### `GET /apod`
 

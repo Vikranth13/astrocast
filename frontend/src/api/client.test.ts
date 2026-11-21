@@ -10,6 +10,7 @@ import {
 import {
   API_BASE_URL,
   ApiRequestError,
+  apiDelete,
   apiGet,
   buildApiUrl,
   resolveApiBaseUrl,
@@ -155,7 +156,10 @@ describe("apiGet", () => {
     });
 
     expect(fetchMock).toHaveBeenCalledWith(
-      `${API_BASE_URL}/api/space-weather/alerts?limit=5`
+      `${API_BASE_URL}/api/space-weather/alerts?limit=5`,
+      {
+        method: "GET",
+      }
     );
   });
 
@@ -295,5 +299,63 @@ describe("apiGet", () => {
 
     expect(error.code).toBe("invalid_response");
     expect(error.status).toBe(200);
+  });
+});
+
+
+describe("apiDelete", () => {
+  it("sends a DELETE and returns the parsed body", async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse({
+        deleted_locations: 2,
+        deleted_snapshots: 3,
+      })
+    );
+
+    const body = await apiDelete(
+      "/api/locations",
+      {
+        fallbackMessage: "Failed.",
+      }
+    );
+
+    expect(body).toEqual({
+      deleted_locations: 2,
+      deleted_snapshots: 3,
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${API_BASE_URL}/api/locations`,
+      {
+        method: "DELETE",
+      }
+    );
+  });
+
+  it("reports failures the same way reads do", async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse(
+        {
+          error: {
+            code: "service_unavailable",
+            message: "Search history is unavailable because the database could not be reached.",
+            details: null,
+          },
+        },
+        503
+      )
+    );
+
+    const error = await captureError(
+      apiDelete(
+        "/api/locations",
+        {
+          fallbackMessage: "Failed.",
+        }
+      )
+    );
+
+    expect(error.code).toBe("service_unavailable");
+    expect(error.status).toBe(503);
   });
 });

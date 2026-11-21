@@ -1,6 +1,6 @@
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, aliased
 
 from models.forecast_snapshot import ForecastSnapshot
@@ -37,6 +37,18 @@ def get_latest_snapshot(
     return db.scalars(
         statement
     ).first()
+
+
+def count_snapshots(
+    db: Session,
+) -> int:
+    return db.scalar(
+        select(
+            func.count()
+        ).select_from(
+            ForecastSnapshot
+        )
+    ) or 0
 
 
 def add_snapshot(

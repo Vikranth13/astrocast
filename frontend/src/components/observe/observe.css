@@ -36,6 +36,29 @@
   list-style: none;
 }
 
+.clear-history {
+  justify-self: start;
+  border-radius: var(--radius-md);
+}
+
+.clear-history-confirm {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+}
+
+.clear-history-confirm p {
+  margin: 0;
+}
+
+.clear-history-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
 .recent-search {
   display: grid;
   gap: var(--space-1);
