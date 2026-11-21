@@ -66,6 +66,7 @@ function ResourceCard<T>({
           <PageState
             status="error"
             errorMessage={resource.message}
+            onRetry={resource.retry}
           />
         )}
 

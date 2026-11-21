@@ -1,8 +1,14 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
+
+import {
+  isCancelled,
+  isRetryable,
+} from "../api/client";
 
 import {
   clearSearchHistory,
@@ -22,10 +28,6 @@ import type {
   ForecastResponse,
 } from "../api/types/observe";
 
-import type {
-  CurrentSpaceWeatherResponse,
-} from "../api/types/spaceWeather";
-
 import SourceState from "../components/SourceState";
 import SpaceWeatherCard from "../components/SpaceWeatherCard";
 
@@ -40,6 +42,7 @@ import ScoreReadout from "../components/observe/ScoreReadout";
 import Card from "../components/ui/Card";
 import EmptyState from "../components/ui/EmptyState";
 import ErrorState from "../components/ui/ErrorState";
+import LoadingState from "../components/ui/LoadingState";
 import Meter from "../components/ui/Meter";
 import MetricCard from "../components/ui/MetricCard";
 import PageSection from "../components/ui/PageSection";
@@ -49,6 +52,10 @@ import {
   forgetCachedResource,
   useApiResource,
 } from "../hooks/useApiResource";
+
+import {
+  isSameCity,
+} from "../utils/city";
 
 import {
   formatLocalTime,
@@ -63,9 +70,21 @@ const RECENT_SEARCH_LIMIT = 5;
 
 const RECENT_SEARCHES_CACHE_KEY = "locations:recent";
 
-function fetchRecentSearches() {
+// retryCity is the city to search again, or null when repeating the
+// search could not help, such as an unknown city or an empty box.
+type SearchError = {
+  message: string;
+  retryCity: string | null;
+};
+
+function fetchRecentSearches(
+  options: {
+    signal: AbortSignal;
+  }
+) {
   return listRecentSearches(
-    RECENT_SEARCH_LIMIT
+    RECENT_SEARCH_LIMIT,
+    options
   );
 }
 
@@ -97,28 +116,33 @@ function ObserveTonight() {
       null
     );
 
-  const [isLoading, setIsLoading] =
-    useState(false);
+  // The city whose forecast is being fetched, or null when no search is
+  // running.
+  const [searchingCity, setSearchingCity] =
+    useState<string | null>(null);
 
-  const [errorMessage, setErrorMessage] =
-    useState("");
+  const [searchError, setSearchError] =
+    useState<SearchError | null>(null);
 
-  const [
-    spaceWeather,
-    setSpaceWeather,
-  ] = useState<CurrentSpaceWeatherResponse | null>(
-    null
+  // The request behind searchingCity. A newer search for a different
+  // city cancels it.
+  const searchRequest = useRef<{
+    city: string;
+    controller: AbortController;
+  } | null>(null);
+
+  // Leaving the page cancels a search still running.
+  useEffect(() => {
+    const request = searchRequest;
+
+    return () => {
+      request.current?.controller.abort();
+    };
+  }, []);
+
+  const spaceWeather = useApiResource(
+    getCurrentSpaceWeather
   );
-
-  const [
-    isSpaceWeatherLoading,
-    setIsSpaceWeatherLoading,
-  ] = useState(true);
-
-  const [
-    spaceWeatherError,
-    setSpaceWeatherError,
-  ] = useState("");
 
   // A new loader identity makes the list load again. Replacing it after
   // each successful search brings the city just checked to the top. The
@@ -143,7 +167,12 @@ function ObserveTonight() {
       const locationId = forecast?.location_id;
 
       return locationId
-        ? () => getForecastHistory(locationId)
+        ? (options: { signal: AbortSignal }) =>
+          getForecastHistory(
+            locationId,
+            undefined,
+            options
+          )
         : null;
     },
     [forecast]
@@ -153,88 +182,92 @@ function ObserveTonight() {
     loadHistory
   );
 
-  useEffect(() => {
-    let ignoreResult = false;
-
-    async function loadSpaceWeather() {
-      try {
-        setIsSpaceWeatherLoading(true);
-        setSpaceWeatherError("");
-
-        const data =
-          await getCurrentSpaceWeather();
-
-        if (!ignoreResult) {
-          setSpaceWeather(data);
-        }
-      } catch (error) {
-        if (ignoreResult) {
-          return;
-        }
-
-        if (error instanceof Error) {
-          setSpaceWeatherError(
-            error.message
-          );
-        } else {
-          setSpaceWeatherError(
-            "Failed to load space weather."
-          );
-        }
-      } finally {
-        if (!ignoreResult) {
-          setIsSpaceWeatherLoading(false);
-        }
-      }
-    }
-
-    loadSpaceWeather();
-
-    return () => {
-      ignoreResult = true;
-    };
-  }, []);
-
   async function runSearch(
     cityName: string
   ) {
     const trimmedCity = cityName.trim();
 
     if (!trimmedCity) {
-      setErrorMessage(
-        "Please enter a city."
-      );
+      setSearchError({
+        message: "Please enter a city.",
+        retryCity: null,
+      });
       return;
     }
 
-    try {
-      setIsLoading(true);
-      setErrorMessage("");
-      setForecast(null);
-
-      const data = await getForecast(
+    // Asking for the city already being fetched would only fetch the same
+    // answer twice.
+    if (
+      searchRequest.current !== null
+      && isSameCity(
+        searchRequest.current.city,
         trimmedCity
+      )
+    ) {
+      return;
+    }
+
+    // A search for a different city replaces the one still running.
+    searchRequest.current?.controller.abort();
+
+    const controller = new AbortController();
+
+    searchRequest.current = {
+      city: trimmedCity,
+      controller,
+    };
+
+    setSearchingCity(trimmedCity);
+    setSearchError(null);
+    setForecast(null);
+
+    try {
+      const data = await getForecast(
+        trimmedCity,
+        {
+          signal: controller.signal,
+        }
       );
+
+      // A newer search may have started while this one was finishing.
+      if (controller.signal.aborted) {
+        return;
+      }
 
       setForecast(data);
 
       setIsHistoryCleared(false);
 
       setLoadRecent(
-        () => () => fetchRecentSearches()
+        () => (options: { signal: AbortSignal }) =>
+          fetchRecentSearches(options)
       );
     } catch (error) {
-      if (error instanceof Error) {
-        setErrorMessage(
-          error.message
-        );
-      } else {
-        setErrorMessage(
-          "Something went wrong."
-        );
+      if (
+        controller.signal.aborted
+        || isCancelled(error)
+      ) {
+        return;
       }
+
+      setSearchError({
+        message:
+          error instanceof Error
+            ? error.message
+            : "Something went wrong.",
+        // An unknown city stays unknown however often it is asked for,
+        // so only failures worth repeating offer Try again.
+        retryCity: isRetryable(error)
+          ? trimmedCity
+          : null,
+      });
     } finally {
-      setIsLoading(false);
+      // Only the newest search clears the busy state.
+      if (searchRequest.current?.controller === controller) {
+        searchRequest.current = null;
+
+        setSearchingCity(null);
+      }
     }
   }
 
@@ -261,7 +294,8 @@ function ObserveTonight() {
     );
 
     setLoadRecent(
-      () => () => fetchRecentSearches()
+      () => (options: { signal: AbortSignal }) =>
+        fetchRecentSearches(options)
     );
 
     setIsHistoryCleared(true);
@@ -278,16 +312,35 @@ function ObserveTonight() {
 
       <div className="page-sections">
         <div className="ui-stack">
+          {/* Busy only while the box still names the city being checked.
+              Type another city and the button is free again, and using it
+              replaces the search still running. */}
           <CitySearch
             value={city}
-            isLoading={isLoading}
+            isChecking={
+              searchingCity !== null
+              && isSameCity(searchingCity, city)
+            }
             onChange={setCity}
             onSubmit={handleCheckSky}
           />
 
-          {errorMessage && (
+          {searchingCity !== null && (
+            <LoadingState
+              message={`Checking tonight's sky for ${searchingCity}...`}
+            />
+          )}
+
+          {searchError && (
             <ErrorState
-              message={errorMessage}
+              message={searchError.message}
+              onRetry={
+                searchError.retryCity === null
+                  ? undefined
+                  : () => runSearch(
+                    searchError.retryCity ?? ""
+                  )
+              }
             />
           )}
         </div>
@@ -309,7 +362,7 @@ function ObserveTonight() {
                 <div className="ui-stack">
                   <RecentSearches
                     searches={data.searches}
-                    disabled={isLoading}
+                    checkingCity={searchingCity}
                     onSelect={handleRecentSearch}
                   />
 
@@ -479,12 +532,23 @@ function ObserveTonight() {
           description="Global geomagnetic activity from stored NOAA data."
         >
           <SpaceWeatherCard
-            data={spaceWeather}
+            data={
+              spaceWeather.status === "ready"
+                ? spaceWeather.data
+                : null
+            }
             isLoading={
-              isSpaceWeatherLoading
+              spaceWeather.status === "loading"
             }
             errorMessage={
-              spaceWeatherError
+              spaceWeather.status === "error"
+                ? spaceWeather.message
+                : ""
+            }
+            onRetry={
+              spaceWeather.status === "error"
+                ? spaceWeather.retry
+                : undefined
             }
           />
         </PageSection>

@@ -28,7 +28,12 @@ function SourceState<T>({
   }
 
   if (resource.status === "error") {
-    return <ErrorState message={resource.message} />;
+    return (
+      <ErrorState
+        message={resource.message}
+        onRetry={resource.retry}
+      />
+    );
   }
 
   return <LoadingState message={loadingMessage} />;

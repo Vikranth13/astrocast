@@ -1,6 +1,7 @@
 import {
   apiDelete,
   apiGet,
+  type RequestOptions,
 } from "./client";
 
 import type {
@@ -13,11 +14,13 @@ import type {
 // using the backend.
 
 export function listRecentSearches(
-  limit = 5
+  limit = 5,
+  options: RequestOptions = {}
 ): Promise<RecentSearchListResponse> {
   return apiGet<RecentSearchListResponse>(
     "/api/locations/recent",
     {
+      ...options,
       params: {
         limit,
       },
@@ -28,11 +31,13 @@ export function listRecentSearches(
 
 export function getForecastHistory(
   locationId: number,
-  limit = 10
+  limit = 10,
+  options: RequestOptions = {}
 ): Promise<ForecastHistoryResponse> {
   return apiGet<ForecastHistoryResponse>(
     `/api/locations/${locationId}/forecasts`,
     {
+      ...options,
       params: {
         limit,
       },

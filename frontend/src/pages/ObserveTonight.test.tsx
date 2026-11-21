@@ -1,4 +1,5 @@
 import {
+  act,
   render,
   screen,
   within,
@@ -30,8 +31,13 @@ import {
   getCurrentSpaceWeather,
 } from "../api/spaceWeatherApi";
 
+import {
+  ApiRequestError,
+} from "../api/client";
+
 import type {
   ForecastHistoryResponse,
+  ForecastResponse,
   ForecastSnapshotSummary,
   RecentSearchListResponse,
   SavedLocation,
@@ -44,6 +50,10 @@ import type {
 import {
   FORECAST_FIXTURE,
 } from "../test/forecastFixture";
+
+import {
+  WITH_SIGNAL,
+} from "../test/matchers";
 
 
 vi.mock(
@@ -304,7 +314,8 @@ describe(
         expect(
           mockedGetForecast
         ).toHaveBeenCalledWith(
-          "New Brunswick"
+          "New Brunswick",
+          WITH_SIGNAL
         );
       }
     );
@@ -548,7 +559,10 @@ describe(
           )
         );
 
-        expect(mockedGetForecast).toHaveBeenCalledWith("Paris");
+        expect(mockedGetForecast).toHaveBeenCalledWith(
+          "Paris",
+          WITH_SIGNAL
+        );
 
         expect(
           screen.getByRole(
@@ -618,7 +632,11 @@ describe(
           }
         );
 
-        expect(mockedGetForecastHistory).toHaveBeenCalledWith(7);
+        expect(mockedGetForecastHistory).toHaveBeenCalledWith(
+          7,
+          undefined,
+          WITH_SIGNAL
+        );
 
         const entries = within(checks).getAllByRole("listitem");
 
@@ -950,6 +968,237 @@ describe(
             "list",
             {
               name: "Earlier checks",
+            }
+          )
+        ).not.toBeInTheDocument();
+      }
+    );
+
+
+    it(
+      "lets a newer search replace one still running",
+      async () => {
+        const user = userEvent.setup();
+
+        const signals: AbortSignal[] = [];
+
+        const parisForecast: ForecastResponse = {
+          ...FORECAST_FIXTURE,
+          location: PARIS,
+          location_id: 9,
+          stargazing: {
+            ...FORECAST_FIXTURE.stargazing,
+            explanation: "Paris looks clear tonight.",
+          },
+        };
+
+        const denverForecast: ForecastResponse = {
+          ...FORECAST_FIXTURE,
+          stargazing: {
+            ...FORECAST_FIXTURE.stargazing,
+            explanation: "Denver looks cloudy tonight.",
+          },
+        };
+
+        let answerDenver: (forecast: ForecastResponse) => void = () => {};
+
+        mockedGetForecast.mockImplementation(
+          (city, options) => {
+            if (options?.signal) {
+              signals.push(options.signal);
+            }
+
+            return city === "Denver"
+              ? new Promise((settle) => {
+                answerDenver = settle;
+              })
+              : Promise.resolve(parisForecast);
+          }
+        );
+
+        render(<ObserveTonight />);
+
+        const box = screen.getByRole(
+          "textbox",
+          {
+            name: "City",
+          }
+        );
+
+        await user.type(box, "Denver{Enter}");
+
+        expect(
+          screen.getByRole(
+            "button",
+            {
+              name: "Checking...",
+            }
+          )
+        ).toBeDisabled();
+
+        // Another city frees the button again.
+        await user.clear(box);
+        await user.type(box, "Paris");
+
+        await user.click(
+          screen.getByRole(
+            "button",
+            {
+              name: "Check Sky",
+            }
+          )
+        );
+
+        expect(
+          await screen.findByText("Paris looks clear tonight.")
+        ).toBeInTheDocument();
+
+        // The Denver request was cancelled, not left to finish.
+        expect(signals[0].aborted).toBe(true);
+
+        // Even if its answer still arrives, it must not replace Paris.
+        await act(async () => {
+          answerDenver(denverForecast);
+        });
+
+        expect(
+          screen.getByText("Paris looks clear tonight.")
+        ).toBeInTheDocument();
+
+        expect(
+          screen.queryByText("Denver looks cloudy tonight.")
+        ).not.toBeInTheDocument();
+      }
+    );
+
+
+    it(
+      "treats the same city in any case as a repeat and does not send it again",
+      async () => {
+        const user = userEvent.setup();
+
+        mockedGetForecast.mockImplementation(
+          () => new Promise(() => {})
+        );
+
+        render(<ObserveTonight />);
+
+        const box = screen.getByRole(
+          "textbox",
+          {
+            name: "City",
+          }
+        );
+
+        await user.type(box, "Denver{Enter}");
+
+        await user.clear(box);
+        await user.type(box, "  denver ");
+
+        expect(
+          screen.getByRole(
+            "button",
+            {
+              name: "Checking...",
+            }
+          )
+        ).toBeDisabled();
+
+        expect(mockedGetForecast).toHaveBeenCalledTimes(1);
+
+        expect(
+          screen.getByText("Checking tonight's sky for Denver...")
+        ).toBeInTheDocument();
+      }
+    );
+
+
+    it(
+      "offers Try again when the server could not be reached",
+      async () => {
+        const user = userEvent.setup();
+
+        mockedGetForecast
+          .mockRejectedValueOnce(
+            new ApiRequestError({
+              message: "The AstroCast server could not be reached. Check that the backend is running, then try again.",
+              status: null,
+              code: "network_error",
+            })
+          )
+          .mockResolvedValueOnce(
+            FORECAST_FIXTURE
+          );
+
+        render(<ObserveTonight />);
+
+        await user.type(
+          screen.getByRole(
+            "textbox",
+            {
+              name: "City",
+            }
+          ),
+          "New Brunswick{Enter}"
+        );
+
+        await user.click(
+          await screen.findByRole(
+            "button",
+            {
+              name: "Try again",
+            }
+          )
+        );
+
+        expect(
+          await screen.findByText(
+            FORECAST_FIXTURE.stargazing.explanation
+          )
+        ).toBeInTheDocument();
+
+        expect(mockedGetForecast).toHaveBeenCalledTimes(2);
+        expect(mockedGetForecast.mock.calls[1][0]).toBe("New Brunswick");
+      }
+    );
+
+
+    it(
+      "offers no Try again for a city that does not exist",
+      async () => {
+        const user = userEvent.setup();
+
+        mockedGetForecast.mockRejectedValue(
+          new ApiRequestError({
+            message: "No location found for city: Atlantis",
+            status: 404,
+            code: "not_found",
+          })
+        );
+
+        render(<ObserveTonight />);
+
+        await user.type(
+          screen.getByRole(
+            "textbox",
+            {
+              name: "City",
+            }
+          ),
+          "Atlantis{Enter}"
+        );
+
+        expect(
+          await screen.findByText(
+            "No location found for city: Atlantis"
+          )
+        ).toBeInTheDocument();
+
+        expect(
+          screen.queryByRole(
+            "button",
+            {
+              name: "Try again",
             }
           )
         ).not.toBeInTheDocument();

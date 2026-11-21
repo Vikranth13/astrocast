@@ -10,6 +10,24 @@ const NETWORK_ERROR_MESSAGE =
 const INVALID_RESPONSE_MESSAGE =
   "The AstroCast server sent a response that could not be read.";
 
+const CANCELLED_MESSAGE =
+  "The request was cancelled because a newer one replaced it.";
+
+// Failures that might succeed if the same request is made again: the
+// server or a source it depends on was unreachable or failed, or the
+// reply could not be read. A missing record (not_found) or a rejected
+// input (validation_error) would fail the same way every time, so those
+// are left out.
+const RETRYABLE_ERROR_CODES = new Set([
+  "network_error",
+  "unexpected_response",
+  "invalid_response",
+  "internal_error",
+  "service_unavailable",
+  "upstream_unavailable",
+  "upstream_timeout",
+]);
+
 export type QueryValue =
   | string
   | number
@@ -28,9 +46,9 @@ type ApiRequestErrorInit = {
 
 // One error type for every failed request. code is the backend's
 // machine-readable error code when the response carried the standard
-// envelope, or one of network_error, unexpected_response, and
-// invalid_response when it did not. status is null when no response
-// arrived at all.
+// envelope, or one of network_error, unexpected_response,
+// invalid_response, and cancelled when it did not. status is null when
+// no response arrived at all.
 export class ApiRequestError extends Error {
   readonly status: number | null;
 
@@ -150,7 +168,13 @@ async function readErrorResponse(
   });
 }
 
-export type ApiRequestOptions = {
+// What every client function accepts. Aborting the signal cancels the
+// request, for example when a newer search replaces it.
+export type RequestOptions = {
+  signal?: AbortSignal;
+};
+
+export type ApiRequestOptions = RequestOptions & {
   params?: QueryParams;
   // Shown only when a failed response does not carry the standard error
   // envelope. Otherwise the backend's own message is used.
@@ -161,6 +185,37 @@ type ApiMethod =
   | "GET"
   | "DELETE";
 
+function cancelledError(): ApiRequestError {
+  return new ApiRequestError({
+    message: CANCELLED_MESSAGE,
+    status: null,
+    code: "cancelled",
+  });
+}
+
+// True when a request was cancelled on purpose. Callers ignore these:
+// nobody is waiting for the answer any more.
+export function isCancelled(
+  error: unknown
+): boolean {
+  return (
+    error instanceof ApiRequestError
+    && error.code === "cancelled"
+  );
+}
+
+// True when asking again could plausibly work. An error that did not come
+// from the API client is treated as retryable, since its cause is unknown.
+export function isRetryable(
+  error: unknown
+): boolean {
+  if (!(error instanceof ApiRequestError)) {
+    return true;
+  }
+
+  return RETRYABLE_ERROR_CODES.has(error.code);
+}
+
 // The only place in the application that calls fetch. Every method
 // shares the same error handling, so a failed delete reads exactly like
 // a failed read.
@@ -170,6 +225,7 @@ async function apiRequest<T>(
   {
     params,
     fallbackMessage,
+    signal,
   }: ApiRequestOptions
 ): Promise<T> {
   let response: Response;
@@ -177,11 +233,22 @@ async function apiRequest<T>(
   try {
     response = await fetch(
       buildApiUrl(path, params),
-      {
-        method,
-      }
+      signal
+        ? {
+          method,
+          signal,
+        }
+        : {
+          method,
+        }
     );
   } catch {
+    // fetch rejects the same way for a cancelled request and a dropped
+    // connection. The signal says which one it was.
+    if (signal?.aborted) {
+      throw cancelledError();
+    }
+
     throw new ApiRequestError({
       message: NETWORK_ERROR_MESSAGE,
       status: null,
@@ -199,6 +266,11 @@ async function apiRequest<T>(
   try {
     return (await response.json()) as T;
   } catch {
+    // Cancelling while the body is still arriving also lands here.
+    if (signal?.aborted) {
+      throw cancelledError();
+    }
+
     throw new ApiRequestError({
       message: INVALID_RESPONSE_MESSAGE,
       status: response.status,

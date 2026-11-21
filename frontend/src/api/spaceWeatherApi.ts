@@ -1,5 +1,6 @@
 import {
   apiGet,
+  type RequestOptions,
 } from "./client";
 
 import type {
@@ -45,22 +46,26 @@ export type SolarWindTrendQuery = TrendQuery & {
   interval?: TrendInterval;
 };
 
-export function getCurrentSpaceWeather():
-  Promise<CurrentSpaceWeatherResponse> {
+export function getCurrentSpaceWeather(
+  options: RequestOptions = {}
+): Promise<CurrentSpaceWeatherResponse> {
   return apiGet<CurrentSpaceWeatherResponse>(
     `${SPACE_WEATHER_PATH}/current`,
     {
+      ...options,
       fallbackMessage:
         "Failed to fetch current space weather.",
     }
   );
 }
 
-export function getCurrentSpaceWeatherRisk():
-  Promise<CurrentSpaceWeatherRiskResponse> {
+export function getCurrentSpaceWeatherRisk(
+  options: RequestOptions = {}
+): Promise<CurrentSpaceWeatherRiskResponse> {
   return apiGet<CurrentSpaceWeatherRiskResponse>(
     `${SPACE_WEATHER_PATH}/risk`,
     {
+      ...options,
       fallbackMessage:
         "Failed to fetch the space-weather risk assessment.",
     }
@@ -68,11 +73,13 @@ export function getCurrentSpaceWeatherRisk():
 }
 
 export function listSpaceWeatherAlerts(
-  query: AlertQuery = {}
+  query: AlertQuery = {},
+  options: RequestOptions = {}
 ): Promise<SpaceWeatherAlertListResponse> {
   return apiGet<SpaceWeatherAlertListResponse>(
     `${SPACE_WEATHER_PATH}/alerts`,
     {
+      ...options,
       params: query,
       fallbackMessage:
         "Failed to fetch space-weather alerts.",
@@ -81,11 +88,13 @@ export function listSpaceWeatherAlerts(
 }
 
 export function getSpaceWeatherAlert(
-  alertId: number
+  alertId: number,
+  options: RequestOptions = {}
 ): Promise<SpaceWeatherAlertDetailResponse> {
   return apiGet<SpaceWeatherAlertDetailResponse>(
     `${SPACE_WEATHER_PATH}/alerts/${alertId}`,
     {
+      ...options,
       fallbackMessage:
         "Failed to fetch the space-weather alert.",
     }
@@ -93,11 +102,13 @@ export function getSpaceWeatherAlert(
 }
 
 export function getKpTrend(
-  query: TrendQuery = {}
+  query: TrendQuery = {},
+  options: RequestOptions = {}
 ): Promise<SpaceWeatherTrendResponse> {
   return apiGet<SpaceWeatherTrendResponse>(
     `${SPACE_WEATHER_PATH}/trends/kp`,
     {
+      ...options,
       params: query,
       fallbackMessage:
         "Failed to fetch the Kp trend.",
@@ -106,11 +117,13 @@ export function getKpTrend(
 }
 
 export function getSolarWindTrend(
-  query: SolarWindTrendQuery = {}
+  query: SolarWindTrendQuery = {},
+  options: RequestOptions = {}
 ): Promise<SolarWindTrendResponse> {
   return apiGet<SolarWindTrendResponse>(
     `${SPACE_WEATHER_PATH}/trends/solar-wind`,
     {
+      ...options,
       params: query,
       fallbackMessage:
         "Failed to fetch the solar-wind trend.",

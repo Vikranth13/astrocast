@@ -52,10 +52,30 @@ Codes currently in use:
 | `not_found` | 404 | The route or the requested record does not exist. |
 | `validation_error` | 422 | A query parameter failed validation. `details` names the field. |
 | `internal_error` | 500 | An unexpected failure. Deliberately generic. |
-| `database_error` | 500 | Ingestion reached NOAA but could not persist the result. |
-| `upstream_unavailable` | 502 | NOAA could not be reached during an ingestion run. |
+| `database_error` | 500 | Ingestion reached NOAA but could not save the result. Previously stored data is unchanged. |
+| `upstream_unavailable` | 502 | NOAA, Open-Meteo, or the geocoding service could not be reached. |
+| `service_unavailable` | 503 | PostgreSQL could not be reached. Any route that reads or writes stored data can return this. |
 
-Internal failures are logged with their traceback on the server and reported generically to the client. Exception text, connection details, and tracebacks are never returned in a response.
+Internal failures are logged with their traceback on the server and reported generically to the client. Exception text, connection details, SQL, and tracebacks are never returned in a response.
+
+### What the client sees and what the log keeps
+
+| Failure | Response | Message | Server log |
+|---|---|---|---|
+| Database unreachable | 503 `service_unavailable` | "The AstroCast database could not be reached, so stored data is unavailable right now. Try again shortly." | Traceback with the host, port, and statement |
+| Ingestion could not save its results | 500 `database_error` | "The ingestion run could not save its results to the database. Previously stored data is unchanged." | Traceback with the failed SQL and its parameters |
+| Ingestion failed for another reason | 500 `internal_error` | "The ingestion run failed unexpectedly. The details were written to the server log." | Traceback |
+| NOAA unreachable | 502 `upstream_unavailable` | Fixed message | The client library's error text |
+| Open-Meteo or geocoding unreachable | 502 `upstream_unavailable` | Fixed message | The client library's error text |
+| Anything else | 500 `internal_error` | Fixed message | Traceback with the method and path |
+
+Tests in `backend/tests/test_error_handling.py` raise each of these with recognisable SQL and connection text, and assert that none of it reaches the response body.
+
+### How the frontend treats each code
+
+The frontend offers **Try again** only where asking again could get a different answer: `internal_error`, `service_unavailable`, `upstream_unavailable`, `upstream_timeout`, and its own `network_error`, `unexpected_response`, and `invalid_response`. A `not_found`, `validation_error`, or `bad_request` would come back the same, so those show the message with no retry.
+
+A request the page no longer wants, such as a search replaced by a newer one or a page the user has left, is cancelled with an `AbortSignal`. The client reports it as `cancelled`, and the page ignores it rather than showing an error.
 
 ## Route Summary
 
@@ -387,3 +407,5 @@ An unreachable NOAA returns 502 with code `upstream_unavailable`, and the attemp
 Every attempt writes a fetch log, successful or not. `normalized_count` on that log is zero when the run failed before parsing, and the real count when parsing had finished and a later step failed.
 
 Crucially, a failed ingestion does not affect reads. `/current`, `/risk`, and both trend routes continue to serve stored data throughout, which is why none of them document a 502.
+
+A failure while saving returns a fixed message, never the SQL. The stored data from earlier runs is unchanged, because the run's writes are rolled back.

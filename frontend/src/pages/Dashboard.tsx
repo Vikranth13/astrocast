@@ -42,6 +42,10 @@ import {
 } from "../hooks/useApiResource";
 
 import {
+  isSameCity,
+} from "../utils/city";
+
+import {
   MEASUREMENTS,
 } from "../utils/measurements";
 
@@ -62,23 +66,42 @@ function lastDayStart(): string {
 
 // Module-level loaders keep the same identity between renders, so each
 // source is requested once when the page opens.
-function loadLatestAlert() {
-  return listSpaceWeatherAlerts({
-    limit: 1,
-  });
+type LoaderOptions = {
+  signal: AbortSignal;
+};
+
+function loadLatestAlert(
+  options: LoaderOptions
+) {
+  return listSpaceWeatherAlerts(
+    {
+      limit: 1,
+    },
+    options
+  );
 }
 
-function loadKpLastDay() {
-  return getKpTrend({
-    start: lastDayStart(),
-  });
+function loadKpLastDay(
+  options: LoaderOptions
+) {
+  return getKpTrend(
+    {
+      start: lastDayStart(),
+    },
+    options
+  );
 }
 
-function loadSolarWindLastDay() {
-  return getSolarWindTrend({
-    start: lastDayStart(),
-    limit: SOLAR_WIND_DAY_LIMIT,
-  });
+function loadSolarWindLastDay(
+  options: LoaderOptions
+) {
+  return getSolarWindTrend(
+    {
+      start: lastDayStart(),
+      limit: SOLAR_WIND_DAY_LIMIT,
+    },
+    options
+  );
 }
 
 function Dashboard() {
@@ -107,7 +130,10 @@ function Dashboard() {
   const loadForecast = useMemo(
     () => (
       city
-        ? () => getForecast(city)
+        ? (options: LoaderOptions) => getForecast(
+          city,
+          options
+        )
         : null
     ),
     [city]
@@ -202,8 +228,9 @@ function Dashboard() {
           <div className="ui-stack">
             <CitySearch
               value={cityInput}
-              isLoading={
+              isChecking={
                 forecast.status === "loading"
+                && isSameCity(city, cityInput)
               }
               onChange={setCityInput}
               onSubmit={handleSearch}

@@ -39,6 +39,10 @@ import {
   MOCK_ALERTS,
 } from "../test/spaceWeatherFixtures";
 
+import {
+  WITH_SIGNAL,
+} from "../test/matchers";
+
 
 vi.mock(
   "../api/spaceWeatherApi",
@@ -446,6 +450,41 @@ describe(
 
 
     it(
+      "loads the list again when Try again is pressed",
+      async () => {
+        const user = userEvent.setup();
+
+        mockedListAlerts.mockRejectedValueOnce(
+          new ApiRequestError({
+            message: "The AstroCast server could not be reached. Check that the backend is running, then try again.",
+            status: null,
+            code: "network_error",
+          })
+        );
+
+        renderAt("/alerts");
+
+        await screen.findByText(/could not be reached/);
+
+        await user.click(
+          screen.getByRole(
+            "button",
+            {
+              name: "Try again",
+            }
+          )
+        );
+
+        expect(
+          await screen.findByText(
+            "Showing 1–7 of 7 alerts"
+          )
+        ).toBeInTheDocument();
+      }
+    );
+
+
+    it(
       "labels an expired alert's end time in the past tense",
       async () => {
         renderAt("/alerts?status=expired");
@@ -508,7 +547,7 @@ describe(
           )
         ).toBeInTheDocument();
 
-        expect(mockedGetAlert).toHaveBeenCalledWith(7);
+        expect(mockedGetAlert).toHaveBeenCalledWith(7, WITH_SIGNAL);
 
         expect(
           screen.getByText("NOAA SWPC")
@@ -620,6 +659,16 @@ describe(
             }
           )
         ).toBeInTheDocument();
+
+        // Asking again would get the same answer.
+        expect(
+          screen.queryByRole(
+            "button",
+            {
+              name: "Try again",
+            }
+          )
+        ).not.toBeInTheDocument();
       }
     );
 

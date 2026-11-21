@@ -1,4 +1,5 @@
 import {
+  act,
   renderHook,
   waitFor,
 } from "@testing-library/react";
@@ -83,10 +84,13 @@ describe(
           () => useApiResource(load)
         );
 
+        // An error from outside the API client has an unknown cause, so
+        // trying again is offered.
         await waitFor(() => {
           expect(result.current).toEqual({
             status: "error",
             message: "Upstream failed.",
+            retry: expect.any(Function),
           });
         });
       }
@@ -108,6 +112,7 @@ describe(
           () => useApiResource(load)
         );
 
+        // A missing record stays missing, so there is no retry.
         await waitFor(() => {
           expect(result.current).toEqual({
             status: "error",
@@ -233,6 +238,7 @@ describe(
           expect(result.current).toEqual({
             status: "error",
             message: "Server unreachable.",
+            retry: expect.any(Function),
           });
         });
       }
@@ -281,6 +287,164 @@ describe(
         expect(result.current).toEqual({
           status: "loading",
         });
+      }
+    );
+  }
+);
+
+
+describe(
+  "useApiResource cancellation and retry",
+  () => {
+    // A loader that never answers and records the signal it was given.
+    function recordingLoader(
+      signals: AbortSignal[]
+    ): ApiLoader<string> {
+      return ({ signal }) => {
+        signals.push(signal);
+
+        return new Promise<string>(() => {});
+      };
+    }
+
+
+    it(
+      "cancels the running request when the loader changes",
+      () => {
+        const signals: AbortSignal[] = [];
+
+        const loadFirst = recordingLoader(signals);
+        const loadSecond = recordingLoader(signals);
+
+        const { rerender } = renderHook(
+          ({ load }: { load: ApiLoader<string> }) => useApiResource(load),
+          {
+            initialProps: {
+              load: loadFirst,
+            },
+          }
+        );
+
+        rerender({
+          load: loadSecond,
+        });
+
+        expect(signals).toHaveLength(2);
+        expect(signals[0].aborted).toBe(true);
+        expect(signals[1].aborted).toBe(false);
+      }
+    );
+
+
+    it(
+      "cancels the running request when the component goes away",
+      () => {
+        const signals: AbortSignal[] = [];
+
+        const load = recordingLoader(signals);
+
+        const { unmount } = renderHook(
+          () => useApiResource(load)
+        );
+
+        unmount();
+
+        expect(signals[0].aborted).toBe(true);
+      }
+    );
+
+
+    it(
+      "treats a cancelled request as no answer, not an error",
+      async () => {
+        const load = () => Promise.reject(
+          new ApiRequestError({
+            message: "The request was cancelled.",
+            status: null,
+            code: "cancelled",
+          })
+        );
+
+        const { result } = renderHook(
+          () => useApiResource(load)
+        );
+
+        await new Promise((settle) => setTimeout(settle, 0));
+
+        expect(result.current).toEqual({
+          status: "loading",
+        });
+      }
+    );
+
+
+    it(
+      "loads again when retry is called",
+      async () => {
+        let calls = 0;
+
+        const load = () => {
+          calls += 1;
+
+          return calls === 1
+            ? Promise.reject(
+              new ApiRequestError({
+                message: "The AstroCast server could not be reached.",
+                status: null,
+                code: "network_error",
+              })
+            )
+            : Promise.resolve("Paris");
+        };
+
+        const { result } = renderHook(
+          () => useApiResource(load)
+        );
+
+        await waitFor(() => {
+          expect(result.current.status).toBe("error");
+        });
+
+        const current = result.current;
+
+        act(() => {
+          if (current.status === "error") {
+            current.retry?.();
+          }
+        });
+
+        await waitFor(() => {
+          expect(result.current).toEqual({
+            status: "ready",
+            data: "Paris",
+          });
+        });
+
+        expect(calls).toBe(2);
+      }
+    );
+
+
+    it(
+      "offers no retry for a request the server rejected",
+      async () => {
+        const load = () => Promise.reject(
+          new ApiRequestError({
+            message: "Request validation failed.",
+            status: 422,
+            code: "validation_error",
+          })
+        );
+
+        const { result } = renderHook(
+          () => useApiResource(load)
+        );
+
+        await waitFor(() => {
+          expect(result.current.status).toBe("error");
+        });
+
+        expect(result.current).not.toHaveProperty("retry");
       }
     );
   }

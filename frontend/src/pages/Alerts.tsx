@@ -141,13 +141,16 @@ function Alerts() {
   // The backend filters and pages. The page only forwards what the
   // address asks for.
   const loadAlerts = useMemo(
-    () => () => listSpaceWeatherAlerts({
-      severity: filters.severity,
-      type: filters.type,
-      status: filters.status,
-      limit: ALERT_PAGE_SIZE,
-      offset: (page - 1) * ALERT_PAGE_SIZE,
-    }),
+    () => (options: { signal: AbortSignal }) => listSpaceWeatherAlerts(
+      {
+        severity: filters.severity,
+        type: filters.type,
+        status: filters.status,
+        limit: ALERT_PAGE_SIZE,
+        offset: (page - 1) * ALERT_PAGE_SIZE,
+      },
+      options
+    ),
     [
       filters.severity,
       filters.type,
@@ -247,7 +250,10 @@ function Alerts() {
         )}
 
         {alerts.status === "error" && (
-          <ErrorState message={alerts.message} />
+          <ErrorState
+            message={alerts.message}
+            onRetry={alerts.retry}
+          />
         )}
 
         {alerts.status === "ready" && (

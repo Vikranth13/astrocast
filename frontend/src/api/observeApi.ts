@@ -1,5 +1,6 @@
 import {
   apiGet,
+  type RequestOptions,
 } from "./client";
 
 import type {
@@ -7,11 +8,13 @@ import type {
 } from "./types/observe";
 
 export function getForecast(
-  city: string
+  city: string,
+  options: RequestOptions = {}
 ): Promise<ForecastResponse> {
   return apiGet<ForecastResponse>(
     "/forecast",
     {
+      ...options,
       params: {
         city,
       },

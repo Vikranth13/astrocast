@@ -79,6 +79,19 @@ function GeomagneticCard({
         {risk.status === "error" && (
           <p className="ui-caption">
             Risk assessment unavailable: {risk.message}
+
+            {risk.retry && (
+              <>
+                {" "}
+                <button
+                  type="button"
+                  className="ui-inline-action"
+                  onClick={risk.retry}
+                >
+                  Try again
+                </button>
+              </>
+            )}
           </p>
         )}
 

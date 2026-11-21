@@ -20,6 +20,10 @@ import {
 import Dashboard from "./Dashboard";
 
 import {
+  ApiRequestError,
+} from "../api/client";
+
+import {
   getForecast,
 } from "../api/observeApi";
 
@@ -45,6 +49,10 @@ import {
 import {
   FORECAST_FIXTURE,
 } from "../test/forecastFixture";
+
+import {
+  WITH_SIGNAL,
+} from "../test/matchers";
 
 
 vi.mock(
@@ -193,7 +201,8 @@ describe(
         ).toBeInTheDocument();
 
         expect(mockedGetForecast).toHaveBeenCalledWith(
-          "New Brunswick"
+          "New Brunswick",
+          WITH_SIGNAL
         );
 
         expect(
@@ -243,7 +252,8 @@ describe(
         ).toBeInTheDocument();
 
         expect(mockedGetForecast).toHaveBeenCalledWith(
-          "New Brunswick"
+          "New Brunswick",
+          WITH_SIGNAL
         );
       }
     );
@@ -368,6 +378,77 @@ describe(
 
         expect(
           screen.getByText("Kp 5.33")
+        ).toBeInTheDocument();
+      }
+    );
+
+
+    it(
+      "reloads only the failed card when Try again is pressed",
+      async () => {
+        const user = userEvent.setup();
+
+        mockedGetCurrent.mockRejectedValueOnce(
+          new ApiRequestError({
+            message: "The AstroCast database could not be reached, so stored data is unavailable right now. Try again shortly.",
+            status: 503,
+            code: "service_unavailable",
+          })
+        );
+
+        renderDashboard();
+
+        await screen.findByText(/database could not be reached/);
+
+        const trendCalls = mockedGetKpTrend.mock.calls.length;
+
+        await user.click(
+          screen.getByRole(
+            "button",
+            {
+              name: "Try again",
+            }
+          )
+        );
+
+        expect(
+          await screen.findByText("Kp 5.33")
+        ).toBeInTheDocument();
+
+        expect(mockedGetCurrent).toHaveBeenCalledTimes(2);
+
+        // The cards that loaded the first time are left alone.
+        expect(mockedGetKpTrend).toHaveBeenCalledTimes(trendCalls);
+      }
+    );
+
+
+    it(
+      "offers Try again beside a failed risk assessment",
+      async () => {
+        const user = userEvent.setup();
+
+        mockedGetRisk.mockRejectedValueOnce(
+          new Error("Risk service failed.")
+        );
+
+        renderDashboard();
+
+        await screen.findByText(
+          "Risk assessment unavailable: Risk service failed."
+        );
+
+        await user.click(
+          screen.getByRole(
+            "button",
+            {
+              name: "Try again",
+            }
+          )
+        );
+
+        expect(
+          await screen.findByText("moderate risk")
         ).toBeInTheDocument();
       }
     );

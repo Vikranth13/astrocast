@@ -72,10 +72,10 @@ Replace mock data with typed real API calls, keeping UI behaviour stable.
 - [x] Forecast snapshots saved when appropriate. At most one per place, forecast hour, and hour of checking; a save never blocks the forecast.
 - [x] Recent searches or location history endpoint, without user accounts. `GET /api/locations/recent` and `GET /api/locations/{id}/forecasts`; the history is shared by everyone using the backend.
 - [x] Recent forecast comparisons or a small history list. Observe Tonight lists recent searches and earlier checks, and compares only checks of the same night.
-- [ ] Request cancellation for superseded searches.
-- [ ] Duplicate button submissions prevented.
-- [ ] Friendly retry controls.
-- [ ] Backend errors never expose internal traces.
+- [x] Request cancellation for superseded searches. Every client call takes an `AbortSignal`. A newer search on Observe Tonight cancels the older one, and `useApiResource` cancels a request when its inputs change or the page is left.
+- [x] Duplicate button submissions prevented. Searching for the city already being checked, in any letter case, does nothing; the search button and that city's recent-search entry are disabled while it runs.
+- [x] Friendly retry controls. A **Try again** button on every page and card that can fail for a reason worth retrying, reloading only that source. Not offered for a missing record or a rejected request.
+- [x] Backend errors never expose internal traces. The ingestion handlers no longer echo SQL, and an unreachable database is a 503 with a fixed message instead of a generic 500. See the table in `docs/api.md`.
 - [ ] Full application run from a clean setup.
 - [ ] Expected and invalid cities tested.
 - [ ] Backend-unavailable and NOAA-unavailable scenarios tested.

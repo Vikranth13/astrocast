@@ -28,6 +28,10 @@ import {
   SOLAR_WIND_THRESHOLDS,
 } from "../test/trendFixtures";
 
+import {
+  WITH_SIGNAL,
+} from "../test/matchers";
+
 
 vi.mock(
   "../api/spaceWeatherApi",
@@ -120,16 +124,22 @@ describe(
 
         await screen.findAllByText(/^Past 7 days/);
 
-        expect(mockedGetKpTrend).toHaveBeenCalledWith({
-          start: "2026-08-31T00:00:00.000Z",
-          end: "2026-09-07T00:00:00.000Z",
-        });
+        expect(mockedGetKpTrend).toHaveBeenCalledWith(
+          {
+            start: "2026-08-31T00:00:00.000Z",
+            end: "2026-09-07T00:00:00.000Z",
+          },
+          WITH_SIGNAL
+        );
 
-        expect(mockedGetSolarWindTrend).toHaveBeenCalledWith({
-          start: "2026-08-31T00:00:00.000Z",
-          end: "2026-09-07T00:00:00.000Z",
-          interval: "hour",
-        });
+        expect(mockedGetSolarWindTrend).toHaveBeenCalledWith(
+          {
+            start: "2026-08-31T00:00:00.000Z",
+            end: "2026-09-07T00:00:00.000Z",
+            interval: "hour",
+          },
+          WITH_SIGNAL
+        );
       }
     );
 

@@ -3,6 +3,10 @@ import type {
 } from "../../api/types/observe";
 
 import {
+  isSameCity,
+} from "../../utils/city";
+
+import {
   formatLocalTime,
   formatUtc,
 } from "../../utils/format";
@@ -11,7 +15,9 @@ import "./observe.css";
 
 type RecentSearchesProps = {
   searches: RecentSearch[];
-  disabled: boolean;
+  // The city being checked right now. Only its entry is disabled: choosing
+  // any other place replaces that search.
+  checkingCity: string | null;
   onSelect: (city: string) => void;
 };
 
@@ -27,7 +33,7 @@ function placeName(
 // check, labelled with when it was made, so it is not read as current.
 function RecentSearches({
   searches,
-  disabled,
+  checkingCity,
   onSelect,
 }: RecentSearchesProps) {
   return (
@@ -40,7 +46,13 @@ function RecentSearches({
           <button
             type="button"
             className="ui-button-secondary recent-search"
-            disabled={disabled}
+            disabled={
+              checkingCity !== null
+              && isSameCity(
+                checkingCity,
+                search.location.name
+              )
+            }
             onClick={() =>
               onSelect(search.location.name)
             }

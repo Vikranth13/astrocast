@@ -22,6 +22,7 @@ type SpaceWeatherCardProps = {
   data: CurrentSpaceWeatherResponse | null;
   isLoading: boolean;
   errorMessage: string;
+  onRetry?: () => void;
 };
 
 const CARD_TITLE = "Space Weather";
@@ -30,6 +31,7 @@ function SpaceWeatherCard({
   data,
   isLoading,
   errorMessage,
+  onRetry,
 }: SpaceWeatherCardProps) {
   if (isLoading) {
     return (
@@ -54,6 +56,7 @@ function SpaceWeatherCard({
 
         <ErrorState
           message={errorMessage}
+          onRetry={onRetry}
         />
       </Card>
     );

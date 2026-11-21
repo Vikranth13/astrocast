@@ -2,6 +2,9 @@ import "./ui.css";
 
 type ErrorStateProps = {
   message?: string;
+  // Offered only when trying again could help. A missing record or a
+  // rejected input would fail the same way every time.
+  onRetry?: () => void;
 };
 
 const DEFAULT_MESSAGE =
@@ -9,6 +12,7 @@ const DEFAULT_MESSAGE =
 
 function ErrorState({
   message,
+  onRetry,
 }: ErrorStateProps) {
   return (
     <div
@@ -16,6 +20,16 @@ function ErrorState({
       role="alert"
     >
       <p>{message ?? DEFAULT_MESSAGE}</p>
+
+      {onRetry && (
+        <button
+          type="button"
+          className="ui-button-secondary ui-retry"
+          onClick={onRetry}
+        >
+          Try again
+        </button>
+      )}
     </div>
   );
 }

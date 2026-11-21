@@ -194,7 +194,11 @@ function AlertDetail() {
     () => (
       id === null
         ? null
-        : () => getSpaceWeatherAlert(id)
+        : (options: { signal: AbortSignal }) =>
+          getSpaceWeatherAlert(
+            id,
+            options
+          )
     ),
     [id]
   );
@@ -225,7 +229,10 @@ function AlertDetail() {
       <h1>Alert {alertId}</h1>
 
       {alert.status === "error" ? (
-        <ErrorState message={alert.message} />
+        <ErrorState
+          message={alert.message}
+          onRetry={alert.retry}
+        />
       ) : (
         <LoadingState message="Loading the alert..." />
       )}

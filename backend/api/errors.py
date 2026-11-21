@@ -8,7 +8,10 @@ between endpoints.
 
 Internal failures are deliberately opaque to the
 client. The traceback is logged on the server and the
-caller receives a generic message.
+caller receives a fixed message. No handler here puts
+an exception's own text in a response: database and
+library errors carry SQL, parameters, hosts, and object
+reprs, and none of that belongs to the caller.
 """
 
 import logging
@@ -17,6 +20,7 @@ from fastapi import FastAPI, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import OperationalError
 from starlette.exceptions import (
     HTTPException as StarletteHTTPException,
 )
@@ -67,6 +71,22 @@ INGESTION_UPSTREAM_MESSAGE = (
     "The ingestion run could not reach NOAA. The "
     "attempt was recorded in the fetch log, and "
     "previously stored data is still available."
+)
+
+INGESTION_DATABASE_MESSAGE = (
+    "The ingestion run could not save its results to "
+    "the database. Previously stored data is unchanged."
+)
+
+INGESTION_FAILURE_MESSAGE = (
+    "The ingestion run failed unexpectedly. The details "
+    "were written to the server log."
+)
+
+DATABASE_UNAVAILABLE_MESSAGE = (
+    "The AstroCast database could not be reached, so "
+    "stored data is unavailable right now. Try again "
+    "shortly."
 )
 
 
@@ -233,6 +253,9 @@ def register_exception_handlers(
         the result.
         """
 
+        # The exception wraps the SQLAlchemy error, whose
+        # text includes the failed SQL and its parameters.
+        # The log keeps it; the response does not.
         logger.exception(
             "NOAA ingestion database failure",
         )
@@ -240,7 +263,7 @@ def register_exception_handlers(
         return build_error_response(
             status_code=500,
             code="database_error",
-            message=str(exc),
+            message=INGESTION_DATABASE_MESSAGE,
         )
 
     @app.exception_handler(
@@ -260,7 +283,36 @@ def register_exception_handlers(
 
         return build_error_response(
             status_code=500,
-            message=str(exc),
+            message=INGESTION_FAILURE_MESSAGE,
+        )
+
+    @app.exception_handler(
+        OperationalError
+    )
+    async def handle_database_unavailable(
+        request: Request,
+        exc: OperationalError,
+    ) -> JSONResponse:
+        """
+        The database could not be reached or refused
+        the operation.
+
+        Reported as 503 rather than a generic 500, so
+        clients can say the database is unavailable and
+        offer a retry. The message is fixed: the error's
+        own text names the host, port, and statement.
+        """
+
+        logger.exception(
+            "Database unavailable on %s %s",
+            request.method,
+            request.url.path,
+        )
+
+        return build_error_response(
+            status_code=503,
+            code="service_unavailable",
+            message=DATABASE_UNAVAILABLE_MESSAGE,
         )
 
     @app.exception_handler(Exception)

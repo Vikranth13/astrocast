@@ -7,7 +7,10 @@ import "./observe.css";
 
 type CitySearchProps = {
   value: string;
-  isLoading: boolean;
+  // True while the city in the box is the one being checked. The button
+  // is disabled then, so the same search cannot be sent twice. Disabling
+  // the default button also stops Enter from submitting the form.
+  isChecking: boolean;
   onChange: (value: string) => void;
   onSubmit: () => void;
 };
@@ -16,7 +19,7 @@ type CitySearchProps = {
 // real form, so Enter submits it without a key handler.
 function CitySearch({
   value,
-  isLoading,
+  isChecking,
   onChange,
   onSubmit,
 }: CitySearchProps) {
@@ -55,9 +58,9 @@ function CitySearch({
 
       <button
         type="submit"
-        disabled={isLoading}
+        disabled={isChecking}
       >
-        {isLoading
+        {isChecking
           ? "Checking..."
           : "Check Sky"}
       </button>

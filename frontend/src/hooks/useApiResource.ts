@@ -5,6 +5,8 @@ import {
 
 import {
   ApiRequestError,
+  isCancelled,
+  isRetryable,
 } from "../api/client";
 
 export type ApiResource<T> =
@@ -21,20 +23,40 @@ export type ApiResource<T> =
     // from the API client. Lets a page tell a missing record from an
     // unreachable server.
     code?: string;
+    // Present only when asking again could help. Calling it loads the
+    // same request again.
+    retry?: () => void;
   }
   | {
     status: "ready";
     data: T;
   };
 
-export type ApiLoader<T> = () => Promise<T>;
+// A loader receives the signal for its own request. Passing it on to the
+// API client lets the hook cancel the request when nobody needs it any
+// more.
+export type ApiLoader<T> = (
+  options: {
+    signal: AbortSignal;
+  }
+) => Promise<T>;
+
+type SettledOutcome<T> =
+  | {
+    status: "ready";
+    data: T;
+  }
+  | {
+    status: "error";
+    message: string;
+    code?: string;
+    retryable: boolean;
+  };
 
 type SettledResource<T> = {
   load: ApiLoader<T>;
-  outcome: Extract<
-    ApiResource<T>,
-    { status: "error" | "ready" }
-  >;
+  attempt: number;
+  outcome: SettledOutcome<T>;
 };
 
 const FALLBACK_ERROR_MESSAGE = "Something went wrong.";
@@ -58,7 +80,7 @@ export function forgetCachedResource(
 
 // Reshapes ready data and passes every other state through, so a card
 // can render a summary of a response without losing its loading and
-// error states.
+// error states, or its retry.
 export function mapResource<T, U>(
   resource: ApiResource<T>,
   transform: (data: T) => U
@@ -79,6 +101,10 @@ export function mapResource<T, U>(
 // between renders (a module-level function, or one from useMemo) or it
 // will be called again on every render.
 //
+// Each request gets its own AbortController. When the loader changes, a
+// retry starts, or the component goes away, the request still running is
+// cancelled rather than left to finish for nobody.
+//
 // With a cache key, a page that is left and opened again shows the last
 // response at once while a fresh request runs, then shows the fresh one.
 // If that request fails, the error replaces the cached data rather than
@@ -93,17 +119,26 @@ export function useApiResource<T>(
       null
     );
 
+  // Counts retries. Changing it runs the effect again with the same
+  // loader.
+  const [attempt, setAttempt] =
+    useState(0);
+
   useEffect(() => {
     if (load === null) {
       return;
     }
 
-    // A result that arrives after the loader has changed, or after the
-    // component has gone, belongs to a request nobody is waiting for.
-    let ignoreResult = false;
+    const controller = new AbortController();
 
-    load().then(
+    load({
+      signal: controller.signal,
+    }).then(
       (data) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+
         if (cacheKey !== undefined) {
           responseCache.set(
             cacheKey,
@@ -111,39 +146,46 @@ export function useApiResource<T>(
           );
         }
 
-        if (!ignoreResult) {
-          setSettled({
-            load,
-            outcome: {
-              status: "ready",
-              data,
-            },
-          });
-        }
+        setSettled({
+          load,
+          attempt,
+          outcome: {
+            status: "ready",
+            data,
+          },
+        });
       },
       (error: unknown) => {
-        if (!ignoreResult) {
-          setSettled({
-            load,
-            outcome: {
-              status: "error",
-              message:
-                error instanceof Error
-                  ? error.message
-                  : FALLBACK_ERROR_MESSAGE,
-              ...(error instanceof ApiRequestError
-                ? { code: error.code }
-                : {}),
-            },
-          });
+        // A cancelled request has nobody waiting for it.
+        if (
+          controller.signal.aborted
+          || isCancelled(error)
+        ) {
+          return;
         }
+
+        setSettled({
+          load,
+          attempt,
+          outcome: {
+            status: "error",
+            message:
+              error instanceof Error
+                ? error.message
+                : FALLBACK_ERROR_MESSAGE,
+            ...(error instanceof ApiRequestError
+              ? { code: error.code }
+              : {}),
+            retryable: isRetryable(error),
+          },
+        });
       }
     );
 
     return () => {
-      ignoreResult = true;
+      controller.abort();
     };
-  }, [load, cacheKey]);
+  }, [load, cacheKey, attempt]);
 
   if (load === null) {
     return {
@@ -151,8 +193,27 @@ export function useApiResource<T>(
     };
   }
 
-  if (settled !== null && settled.load === load) {
-    return settled.outcome;
+  if (
+    settled !== null
+    && settled.load === load
+    && settled.attempt === attempt
+  ) {
+    const { outcome } = settled;
+
+    if (outcome.status === "ready") {
+      return outcome;
+    }
+
+    return {
+      status: "error",
+      message: outcome.message,
+      ...(outcome.code !== undefined
+        ? { code: outcome.code }
+        : {}),
+      ...(outcome.retryable
+        ? { retry: () => setAttempt((count) => count + 1) }
+        : {}),
+    };
   }
 
   // Loading is derived rather than stored: until this loader settles,

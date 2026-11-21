@@ -17,6 +17,7 @@ type PageStateProps = {
   loadingMessage?: string;
   errorMessage?: string;
   emptyMessage?: string;
+  onRetry?: () => void;
   children?: ReactNode;
 };
 
@@ -25,6 +26,7 @@ function PageState({
   loadingMessage,
   errorMessage,
   emptyMessage,
+  onRetry,
   children,
 }: PageStateProps) {
   if (status === "loading") {
@@ -39,6 +41,7 @@ function PageState({
     return (
       <ErrorState
         message={errorMessage}
+        onRetry={onRetry}
       />
     );
   }

@@ -236,6 +236,27 @@
   color: var(--tone-critical-text);
 }
 
+.ui-retry {
+  margin-top: var(--space-3);
+  border-radius: var(--radius-md);
+}
+
+/* A retry inside a line of text, styled as a link so the sentence still
+   reads as one. It stays a button, because it acts rather than navigates. */
+.ui-inline-action {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-accent);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.ui-inline-action:hover {
+  color: var(--color-accent-hover);
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;

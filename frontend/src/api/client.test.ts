@@ -13,6 +13,8 @@ import {
   apiDelete,
   apiGet,
   buildApiUrl,
+  isCancelled,
+  isRetryable,
   resolveApiBaseUrl,
 } from "./client";
 
@@ -357,5 +359,93 @@ describe("apiDelete", () => {
 
     expect(error.code).toBe("service_unavailable");
     expect(error.status).toBe(503);
+  });
+});
+
+
+describe("cancelling a request", () => {
+  it("passes the signal to fetch", async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse({})
+    );
+
+    const controller = new AbortController();
+
+    await apiGet(
+      "/forecast",
+      {
+        fallbackMessage: "Failed.",
+        signal: controller.signal,
+      }
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.any(String),
+      {
+        method: "GET",
+        signal: controller.signal,
+      }
+    );
+  });
+
+  it("reports a cancelled request as cancelled, not as a network failure", async () => {
+    const controller = new AbortController();
+
+    fetchMock.mockImplementation(async () => {
+      controller.abort();
+
+      throw new DOMException("The operation was aborted.", "AbortError");
+    });
+
+    const error = await captureError(
+      apiGet(
+        "/forecast",
+        {
+          fallbackMessage: "Failed.",
+          signal: controller.signal,
+        }
+      )
+    );
+
+    expect(error.code).toBe("cancelled");
+    expect(isCancelled(error)).toBe(true);
+    expect(isRetryable(error)).toBe(false);
+  });
+});
+
+
+describe("isRetryable", () => {
+  function errorWithCode(
+    code: string
+  ): ApiRequestError {
+    return new ApiRequestError({
+      message: "Failed.",
+      status: null,
+      code,
+    });
+  }
+
+  it("offers a retry when the server or a source it uses failed", () => {
+    for (const code of [
+      "network_error",
+      "internal_error",
+      "service_unavailable",
+      "upstream_unavailable",
+      "upstream_timeout",
+      "invalid_response",
+    ]) {
+      expect(isRetryable(errorWithCode(code))).toBe(true);
+    }
+  });
+
+  it("offers none when asking again would fail the same way", () => {
+    for (const code of [
+      "not_found",
+      "validation_error",
+      "bad_request",
+      "cancelled",
+    ]) {
+      expect(isRetryable(errorWithCode(code))).toBe(false);
+    }
   });
 });

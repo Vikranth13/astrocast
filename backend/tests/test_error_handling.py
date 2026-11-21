@@ -19,8 +19,10 @@ import pytest
 import requests
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
+from sqlalchemy.exc import OperationalError
 
 import main
+from api import errors
 from api.routes import space_weather
 from clients.noaa_swpc_client import (
     NoaaSwpcClient,
@@ -29,6 +31,7 @@ from clients.noaa_swpc_client import (
 from database import get_db
 from services.noaa_ingestion_service import (
     NoaaIngestionDatabaseError,
+    NoaaIngestionError,
     NoaaIngestionExternalError,
 )
 from services import (
@@ -270,12 +273,37 @@ def test_ingestion_upstream_error_hides_internals(
     assert "HTTPConnectionPool" not in serialized
 
 
-def test_ingestion_database_error_becomes_500(
+# What a wrapped SQLAlchemy error really looks like: the
+# failed statement, its parameters, and the server it
+# tried to reach.
+DATABASE_ERROR_TEXT = (
+    "NOAA ingestion database operation failed: "
+    "(psycopg.OperationalError) connection to server at "
+    "\"db.internal\" (10.0.0.9), port 5432 failed "
+    "[SQL: INSERT INTO space_weather_measurements "
+    "(source, metric_name) VALUES (%(source)s, "
+    "%(metric_name)s)] [parameters: {'source': "
+    "'NOAA_SWPC'}]"
+)
+
+
+def assert_database_detail_hidden(
+    serialized: str,
+) -> None:
+    assert "db.internal" not in serialized
+    assert "10.0.0.9" not in serialized
+    assert "5432" not in serialized
+    assert "INSERT INTO" not in serialized
+    assert "[SQL:" not in serialized
+    assert "psycopg" not in serialized
+
+
+def test_ingestion_database_error_hides_the_sql(
     monkeypatch,
 ) -> None:
     def raise_database_error(db):
         raise NoaaIngestionDatabaseError(
-            "Could not store measurements."
+            DATABASE_ERROR_TEXT
         )
 
     monkeypatch.setattr(
@@ -290,10 +318,107 @@ def test_ingestion_database_error_becomes_500(
 
     assert response.status_code == 500
 
+    body = response.json()
+
     assert_error_envelope(
-        response.json(),
+        body,
         "database_error",
     )
+
+    assert body["error"]["message"] == (
+        errors.INGESTION_DATABASE_MESSAGE
+    )
+
+    assert_database_detail_hidden(
+        response.text
+    )
+
+
+def test_unexpected_ingestion_error_hides_its_text(
+    monkeypatch,
+) -> None:
+    secret = "SECRET_INTERNAL_STATE"
+
+    def raise_ingestion_error(db):
+        raise NoaaIngestionError(
+            "NOAA ingestion encountered an unexpected "
+            f"error: KeyError({secret!r})"
+        )
+
+    monkeypatch.setattr(
+        admin_ingestion,
+        "ingest_noaa_planetary_k_index",
+        raise_ingestion_error,
+    )
+
+    response = client.post(
+        "/api/admin/ingestion/noaa"
+    )
+
+    assert response.status_code == 500
+
+    body = response.json()
+
+    assert_error_envelope(
+        body,
+        "internal_error",
+    )
+
+    assert body["error"]["message"] == (
+        errors.INGESTION_FAILURE_MESSAGE
+    )
+
+    assert secret not in response.text
+    assert "KeyError" not in response.text
+
+
+def test_unreachable_database_is_503_without_details(
+    monkeypatch,
+) -> None:
+    """
+    A read route whose database is down reports a
+    retryable 503 with a fixed message, not the
+    connection error's host, port, and SQL.
+    """
+
+    def raise_operational_error(db):
+        raise OperationalError(
+            "SELECT * FROM space_weather_measurements",
+            {},
+            ConnectionError(
+                "connection to server at \"db.internal\" "
+                "(10.0.0.9), port 5432 failed"
+            ),
+        )
+
+    monkeypatch.setattr(
+        space_weather,
+        "get_current_space_weather",
+        raise_operational_error,
+    )
+
+    response = unsafe_client.get(
+        "/api/space-weather/current"
+    )
+
+    assert response.status_code == 503
+
+    body = response.json()
+
+    assert_error_envelope(
+        body,
+        "service_unavailable",
+    )
+
+    assert body["error"]["message"] == (
+        errors.DATABASE_UNAVAILABLE_MESSAGE
+    )
+
+    assert_database_detail_hidden(
+        response.text
+    )
+
+    assert "SELECT" not in response.text
 
 
 UPSTREAM_SECRET = "SECRET_UPSTREAM_HOST"

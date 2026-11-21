@@ -84,19 +84,25 @@ function Trends() {
   const [trendWindow] = useState(pastWeek);
 
   const loadKp = useMemo(
-    () => () => getKpTrend({
-      start: trendWindow.start,
-      end: trendWindow.end,
-    }),
+    () => (options: { signal: AbortSignal }) => getKpTrend(
+      {
+        start: trendWindow.start,
+        end: trendWindow.end,
+      },
+      options
+    ),
     [trendWindow]
   );
 
   const loadSolarWind = useMemo(
-    () => () => getSolarWindTrend({
-      start: trendWindow.start,
-      end: trendWindow.end,
-      interval: "hour",
-    }),
+    () => (options: { signal: AbortSignal }) => getSolarWindTrend(
+      {
+        start: trendWindow.start,
+        end: trendWindow.end,
+        interval: "hour",
+      },
+      options
+    ),
     [trendWindow]
   );
 
